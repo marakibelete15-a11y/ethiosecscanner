@@ -1,1 +1,0 @@
-"""Vulnerability findings blueprint placeholder."""

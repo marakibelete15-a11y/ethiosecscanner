@@ -6,6 +6,8 @@ __pycache__/
 .Python
 env/
 venv/
+.venv/
+instance/
 ENV/
 build/
 develop-eggs/
@@ -13,8 +15,8 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
-lib64/
+/lib/
+/lib64/
 parts/
 sdist/
 var/
@@ -22,6 +24,7 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+*.log
 
 # Environment variables & secrets
 .env
