@@ -6,14 +6,14 @@
 --   1. SQLAlchemy models in backend/app/models/
 --   2. Alembic migrations in database/migrations/
 --
--- Exported via pg_dump --schema-only
+-- Generated via pg_dump --schema-only --no-owner --no-privileges
 -- ==============================================================================
 
 --
 -- PostgreSQL database dump
 --
 
-\restrict 9dIpe08Wa9EkumVcaWAKquMHRex1zd69yzDAbWgkeoSyeo426R93odaNSUHXT7E
+\restrict jf74L34l1ntqjlsHgb9kLpeO4TGJdkbPkrChOr3gjl25pPNE87EBm4wcyxiVgi4
 
 -- Dumped from database version 18.6
 -- Dumped by pg_dump version 18.6
@@ -416,5 +416,5 @@ ALTER TABLE ONLY public.user_settings
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 9dIpe08Wa9EkumVcaWAKquMHRex1zd69yzDAbWgkeoSyeo426R93odaNSUHXT7E
+\unrestrict jf74L34l1ntqjlsHgb9kLpeO4TGJdkbPkrChOr3gjl25pPNE87EBm4wcyxiVgi4
 

@@ -30,7 +30,7 @@ def test_engine():
 
     with engine.connect() as conn:
         current_db = conn.execute(text("SELECT current_database();")).scalar()
-        assert current_db == "ethiosec_test", f"Safety check failed: connected to '{current_db}' instead of 'ethiosec_test'!"
+        assert current_db == "ethiosec_test_db", f"Safety check failed: connected to '{current_db}' instead of 'ethiosec_test_db'!"
 
     # Prepare clean tables for the test session
     Base.metadata.drop_all(bind=engine)

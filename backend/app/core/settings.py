@@ -1,7 +1,18 @@
-"""Application Settings using pydantic-settings."""
+"""
+Application Settings using pydantic-settings and python-dotenv.
+"""
 
-import os
+from pathlib import Path
+from dotenv import load_dotenv
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Locate root .env relative to this file: backend/app/core/settings.py -> root .env
+ROOT_DIR = Path(__file__).resolve().parent.parent.parent.parent
+ENV_FILE_PATH = ROOT_DIR / ".env"
+
+# Load environment variables into os.environ
+if ENV_FILE_PATH.exists():
+    load_dotenv(dotenv_path=ENV_FILE_PATH)
 
 
 class Settings(BaseSettings):
@@ -14,8 +25,8 @@ class Settings(BaseSettings):
     JWT_SECRET_KEY: str = "replace-with-a-strong-jwt-secret-in-production"
     JWT_ACCESS_TOKEN_EXPIRES_MINUTES: int = 1440
 
-    DATABASE_URL: str = "postgresql+psycopg2://maraki@/ethiosec?host=/home/maraki/pgdata_local&port=5433"
-    TEST_DATABASE_URL: str = "postgresql+psycopg2://maraki@/ethiosec_test?host=/home/maraki/pgdata_local&port=5433"
+    DATABASE_URL: str = "postgresql://ethiosec_user:password@localhost:5432/ethiosec_db"
+    TEST_DATABASE_URL: str = "postgresql://ethiosec_user:password@localhost:5432/ethiosec_test_db"
 
     CORS_ORIGINS: str = "http://127.0.0.1:8000,http://localhost:8000"
     ALLOW_LOCAL_TARGETS: bool = False
@@ -24,9 +35,9 @@ class Settings(BaseSettings):
     SCANNER_REQUEST_TIMEOUT_SECONDS: int = 10
 
     model_config = SettingsConfigDict(
-        env_file=os.getenv("ENV_FILE", ".env"),
+        env_file=str(ENV_FILE_PATH) if ENV_FILE_PATH.exists() else ".env",
         env_file_encoding="utf-8",
-        extra="ignore"
+        extra="ignore",
     )
 
     @property

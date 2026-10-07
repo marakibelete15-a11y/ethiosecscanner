@@ -20,10 +20,10 @@ from app.models import Finding, Report, Scan, Target, User, UserSettings
 
 
 def test_connection_works(test_engine):
-    """Verify that test engine connects cleanly to ethiosec_test."""
+    """Verify that test engine connects cleanly to ethiosec_test_db."""
     with test_engine.connect() as conn:
         db_name = conn.execute(text("SELECT current_database();")).scalar()
-        assert db_name == "ethiosec_test"
+        assert db_name == "ethiosec_test_db"
 
 
 def test_all_six_tables_exist(test_engine):
