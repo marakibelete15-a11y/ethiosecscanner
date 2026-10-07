@@ -80,6 +80,11 @@ app.add_middleware(
 # Register standardized error handlers (SRS Section 7)
 register_error_handlers(app)
 
+# Include API Routers
+from app.routers import auth as auth_router
+
+app.include_router(auth_router.router)
+
 
 # Core Health Check Endpoint (No authentication required)
 @app.get("/health", response_model=HealthResponse, tags=["Health"])
