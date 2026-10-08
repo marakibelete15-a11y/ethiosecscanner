@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import SessionLocal, get_db
 from app.core.error_handlers import register_error_handlers
+from app.core.security import get_jwt_secret
 from app.core.settings import settings
 from app.models import Scan
 from app.schemas.common import HealthResponse
@@ -29,8 +30,12 @@ logger = logging.getLogger("ethiosec.app")
 async def lifespan(app: FastAPI):
     """
     Application lifespan manager.
+    Enforces AUTH-6, SEC-2: Validates JWT_SECRET_KEY on startup across all environments.
     Enforces SCN-10: Scans left in running state at server start are marked failed.
     """
+    # Enforce startup validation of JWT secret key
+    get_jwt_secret()
+
     db: Session = SessionLocal()
     try:
         updated_count = (
@@ -82,8 +87,10 @@ register_error_handlers(app)
 
 # Include API Routers
 from app.routers import auth as auth_router
+from app.routers import targets as targets_router
 
 app.include_router(auth_router.router)
+app.include_router(targets_router.router)
 
 
 # Core Health Check Endpoint (No authentication required)

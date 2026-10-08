@@ -14,8 +14,10 @@ Tests for:
 
 import uuid
 import pytest
+from fastapi.testclient import TestClient
 from app.core.security import get_jwt_secret, hash_password
 from app.core.settings import settings
+from app.main import app
 from app.models import User, UserSettings
 
 
@@ -234,11 +236,26 @@ def test_get_me_with_invalid_token(client):
     assert data["error"]["code"] == "UNAUTHORIZED"
 
 
-def test_jwt_secret_enforced_in_production(monkeypatch):
-    """App refuses default secret in production (AUTH-6, SEC-2)."""
-    monkeypatch.setattr(settings, "ENVIRONMENT", "production")
+def test_startup_fails_with_placeholder_secret(monkeypatch):
+    """App startup must fail in any environment if JWT_SECRET_KEY is the placeholder (AUTH-6, SEC-2)."""
     monkeypatch.setattr(settings, "JWT_SECRET_KEY", "replace-with-a-strong-jwt-secret-in-production")
-
     with pytest.raises(RuntimeError) as exc_info:
-        get_jwt_secret()
-    assert "JWT_SECRET_KEY must be configured" in str(exc_info.value)
+        with TestClient(app):
+            pass
+    assert "JWT_SECRET_KEY" in str(exc_info.value)
+
+
+def test_jwt_secret_enforced_in_any_environment(monkeypatch):
+    """Refuses empty, placeholder, or <32 char keys in any environment (AUTH-6, SEC-2)."""
+    invalid_keys = [
+        "",
+        "replace-with-a-strong-jwt-secret-in-production",
+        "short-secret-under-32-chars",
+    ]
+    for env in ["development", "testing", "production"]:
+        monkeypatch.setattr(settings, "ENVIRONMENT", env)
+        for key in invalid_keys:
+            monkeypatch.setattr(settings, "JWT_SECRET_KEY", key)
+            with pytest.raises(RuntimeError) as exc_info:
+                get_jwt_secret()
+            assert "JWT_SECRET_KEY" in str(exc_info.value)

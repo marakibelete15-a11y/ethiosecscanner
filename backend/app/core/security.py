@@ -14,12 +14,13 @@ from app.core.settings import settings
 def get_jwt_secret() -> str:
     """
     Retrieve JWT signing secret.
-    Refuses to start in production if secret is missing or default (AUTH-6, SEC-2).
+    Refuses to start in ANY environment if secret is missing, default placeholder, or < 32 chars (AUTH-6, SEC-2).
     """
-    secret = settings.JWT_SECRET_KEY
-    if settings.ENVIRONMENT == "production":
-        if not secret or secret == "replace-with-a-strong-jwt-secret-in-production":
-            raise RuntimeError("JWT_SECRET_KEY must be configured in environment in production.")
+    secret = getattr(settings, "JWT_SECRET_KEY", "")
+    if not secret or secret == "replace-with-a-strong-jwt-secret-in-production" or len(secret) < 32:
+        raise RuntimeError(
+            "JWT_SECRET_KEY is missing, equals placeholder from .env.example, or is shorter than 32 characters."
+        )
     return secret
 
 

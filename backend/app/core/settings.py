@@ -4,6 +4,7 @@ Application Settings using pydantic-settings and python-dotenv.
 
 from pathlib import Path
 from dotenv import load_dotenv
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Locate root .env relative to this file: backend/app/core/settings.py -> root .env
@@ -21,8 +22,7 @@ class Settings(BaseSettings):
     HOST: str = "127.0.0.1"
     PORT: int = 8000
 
-    SECRET_KEY: str = "replace-with-a-secure-random-secret-in-production"
-    JWT_SECRET_KEY: str = "replace-with-a-strong-jwt-secret-in-production"
+    JWT_SECRET_KEY: str = ""
     JWT_ACCESS_TOKEN_EXPIRES_MINUTES: int = 1440
 
     DATABASE_URL: str = "postgresql://ethiosec_user:password@localhost:5432/ethiosec_db"
@@ -39,6 +39,15 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         extra="ignore",
     )
+
+    @field_validator("JWT_SECRET_KEY")
+    @classmethod
+    def validate_jwt_secret_key(cls, v: str) -> str:
+        if not v or v == "replace-with-a-strong-jwt-secret-in-production" or len(v) < 32:
+            raise ValueError(
+                "JWT_SECRET_KEY is missing, equals placeholder from .env.example, or is shorter than 32 characters."
+            )
+        return v
 
     @property
     def sync_database_url(self) -> str:

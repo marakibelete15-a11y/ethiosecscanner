@@ -11,12 +11,16 @@ import pytest
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import sessionmaker
 
+# Set explicit test JWT secret before importing settings (SRS AUTH-6, SEC-2)
+os.environ["JWT_SECRET_KEY"] = "test-secret-key-at-least-32-characters-long-for-pytest-safety-verification-token"
+
 # Ensure backend directory is in sys.path
 backend_path = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if backend_path not in sys.path:
     sys.path.insert(0, backend_path)
 
 from app.core.settings import settings
+settings.JWT_SECRET_KEY = "test-secret-key-at-least-32-characters-long-for-pytest-safety-verification-token"
 from app.models import Base
 
 
