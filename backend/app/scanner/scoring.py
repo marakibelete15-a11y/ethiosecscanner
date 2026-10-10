@@ -59,7 +59,7 @@ def calculate_security_score(counts_or_findings: Union[Dict[str, int], List[str]
     )
 
     score = 100 - penalty
-    return max(0, score)
+    return min(100, max(0, score))
 
 
 def calculate_verdict(severity_counts: Dict[str, int], error_count: int = 0) -> str:

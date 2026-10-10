@@ -15,17 +15,21 @@ REDACTED = "********"
 
 # Regex patterns for sensitive header/payload content
 PATTERNS = [
-    # Authorization header (Bearer, Basic, Token)
-    (re.compile(r"(Authorization\s*:\s*(?:Bearer|Basic|Token)\s+)[^\s\r\n]+", re.IGNORECASE), rf"\g<1>{REDACTED}"),
+    # Mask the complete value regardless of the Authorization scheme.
+    (re.compile(r"(Authorization\s*:\s*)[^\r\n]+", re.IGNORECASE), rf"\g<1>{REDACTED}"),
 
-    # Set-Cookie values: Set-Cookie: name=value; flags
+    # Set-Cookie and Cookie header values.
     (re.compile(r"(Set-Cookie\s*:\s*[^=;\s]+)=([^;\r\n]+)", re.IGNORECASE), rf"\g<1>={REDACTED}"),
+    (re.compile(r"((?:Cookie\s*:\s*|;\s*)[^=;\s]+)=([^;\r\n]*)", re.IGNORECASE), rf"\g<1>{REDACTED}"),
 
-    # Cookie request header: Cookie: a=1; b=2
-    (re.compile(r"((?:Cookie\s*:\s*|;\s*)(?:session|sess|token|jwt|auth|key|id)=)[^;\r\n]+", re.IGNORECASE), rf"\g<1>{REDACTED}"),
-
-    # Sensitive query / body parameters: password, token, secret, api_key, auth
-    (re.compile(r"((?:password|passwd|pwd|token|access_token|secret|api_key|apikey|auth_token)\s*[:=]\s*)[^\s&,;\r\n]+", re.IGNORECASE), rf"\g<1>{REDACTED}"),
+    # Sensitive query/body values, including quoted values.
+    (
+        re.compile(
+            r"([\"']?(?:password|passwd|pwd|token|access_token|secret|api_key|apikey|auth_token)[\"']?\s*[:=]\s*)(?:\"[^\"\r\n]*\"|'[^'\r\n]*'|[^\s&,;}\r\n]+)",
+            re.IGNORECASE,
+        ),
+        rf"\g<1>{REDACTED}",
+    ),
 ]
 
 

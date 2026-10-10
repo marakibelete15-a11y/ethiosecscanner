@@ -10,7 +10,7 @@ Evaluates presence and configuration of 6 essential defensive HTTP response head
 6. Permissions-Policy
 """
 
-from typing import Any, Dict, List
+from typing import Any, Callable, Dict, List, Optional
 from urllib.parse import urlparse
 
 from app.scanner.http_client import SafeHttpClient, SafeResponse
@@ -21,6 +21,7 @@ def run(
     target_url: str,
     client: SafeHttpClient,
     pages: List[str] = None,
+    should_cancel: Optional[Callable[[], bool]] = None,
 ) -> Dict[str, Any]:
     """
     Execute security headers evaluation against target website.
@@ -42,10 +43,19 @@ def run(
     checks_run = 0
     checks_passed = 0
 
+    def cancelled_result() -> Dict[str, Any]:
+        return {
+            "checks_run": checks_run,
+            "checks_passed": checks_passed,
+            "findings": findings,
+        }
+
     headers_dump = "\n".join(f"{k}: {v}" for k, v in response.headers.items())
     evidence_text = f"HTTP {response.status_code}\nHeaders received:\n{headers_dump}"
 
     # 1. Content-Security-Policy
+    if should_cancel and should_cancel():
+        return cancelled_result()
     checks_run += 1
     csp = headers_lower.get("content-security-policy")
     if not csp:
@@ -71,6 +81,8 @@ def run(
         checks_passed += 1
 
     # 2. Strict-Transport-Security (HSTS)
+    if should_cancel and should_cancel():
+        return cancelled_result()
     checks_run += 1
     hsts = headers_lower.get("strict-transport-security")
     if is_https and not hsts:
@@ -99,6 +111,8 @@ def run(
         checks_passed += 1
 
     # 3. X-Frame-Options
+    if should_cancel and should_cancel():
+        return cancelled_result()
     checks_run += 1
     xfo = headers_lower.get("x-frame-options")
     csp_has_ancestors = csp and "frame-ancestors" in csp.lower()
@@ -125,6 +139,8 @@ def run(
         checks_passed += 1
 
     # 4. X-Content-Type-Options
+    if should_cancel and should_cancel():
+        return cancelled_result()
     checks_run += 1
     xcto = headers_lower.get("x-content-type-options")
     if not xcto or "nosniff" not in xcto.lower():
@@ -149,6 +165,8 @@ def run(
         checks_passed += 1
 
     # 5. Referrer-Policy
+    if should_cancel and should_cancel():
+        return cancelled_result()
     checks_run += 1
     rp = headers_lower.get("referrer-policy")
     if not rp:
@@ -173,6 +191,8 @@ def run(
         checks_passed += 1
 
     # 6. Permissions-Policy
+    if should_cancel and should_cancel():
+        return cancelled_result()
     checks_run += 1
     pp = headers_lower.get("permissions-policy")
     if not pp:
