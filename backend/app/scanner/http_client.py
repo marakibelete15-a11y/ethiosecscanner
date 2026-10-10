@@ -9,7 +9,7 @@ Guarantees:
 """
 
 import time
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 from urllib.parse import urljoin
 
 import httpcore
@@ -61,8 +61,8 @@ class SafeSyncBackend(httpcore.SyncBackend):
 class SafeTransport(httpx.HTTPTransport):
     """HTTPX Transport backed by SafeSyncBackend for IP pinning and SSRF defense."""
 
-    def __init__(self, allow_local: bool = False, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, allow_local: bool = False, verify: bool = True, **kwargs):
+        super().__init__(verify=verify, **kwargs)
         self._pool = httpcore.ConnectionPool(
             ssl_context=self._pool._ssl_context,
             network_backend=SafeSyncBackend(allow_local=allow_local),
@@ -83,6 +83,7 @@ class SafeResponse:
         url: str,
         final_url: str,
         elapsed_seconds: float,
+        set_cookie_headers: Optional[List[str]] = None,
     ):
         self.status_code = status_code
         self.headers = headers
@@ -90,6 +91,7 @@ class SafeResponse:
         self.url = url
         self.final_url = final_url
         self.elapsed_seconds = elapsed_seconds
+        self.set_cookie_headers = set_cookie_headers or []
 
     @property
     def text(self) -> str:
@@ -115,6 +117,7 @@ class SafeHttpClient:
         timeout_seconds: Optional[float] = None,
         max_response_size: int = DEFAULT_MAX_RESPONSE_SIZE,
         max_redirects: int = DEFAULT_MAX_REDIRECTS,
+        verify_tls: bool = False,
     ):
         self.allow_local = (
             allow_local if allow_local is not None else settings.ALLOW_LOCAL_TARGETS
@@ -126,6 +129,7 @@ class SafeHttpClient:
         )
         self.max_response_size = max_response_size
         self.max_redirects = max_redirects
+        self.verify_tls = verify_tls
 
     def request(
         self,
@@ -133,6 +137,7 @@ class SafeHttpClient:
         url: str,
         headers: Optional[Dict[str, str]] = None,
         follow_redirects: bool = True,
+        verify_tls: Optional[bool] = None,
         **kwargs,
     ) -> SafeResponse:
         """
@@ -144,12 +149,14 @@ class SafeHttpClient:
             **(headers or {}),
         }
 
-        transport = SafeTransport(allow_local=self.allow_local)
+        transport = SafeTransport(
+            allow_local=self.allow_local,
+            verify=self.verify_tls if verify_tls is None else verify_tls,
+        )
         client = httpx.Client(
             transport=transport,
             timeout=httpx.Timeout(self.timeout_seconds),
             follow_redirects=False,
-            verify=False,  # Allow self-signed certificates in scanner & local testing
         )
 
         current_url = url
@@ -207,6 +214,7 @@ class SafeHttpClient:
                     url=url,
                     final_url=str(response.url),
                     elapsed_seconds=elapsed,
+                    set_cookie_headers=response.headers.get_list("set-cookie"),
                 )
         finally:
             client.close()

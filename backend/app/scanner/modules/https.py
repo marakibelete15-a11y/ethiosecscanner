@@ -1,111 +1,200 @@
-"""
-HTTPS and Transport Layer Security Scanner Module (SRS Section 5, OWASP A02:2021 Cryptographic Failures).
+"""HTTPS availability, redirect, certificate, and HSTS checks."""
 
-Evaluates:
-1. Transport encryption (HTTPS vs plaintext HTTP)
-2. HTTP-to-HTTPS automatic redirection
-3. Strict-Transport-Security (HSTS) enforcement on encrypted endpoints
-"""
+from typing import Any, Callable, Dict, List, Optional
+from urllib.parse import urljoin, urlparse, urlunparse
 
-from typing import Any, Dict, List
-from urllib.parse import urlparse
+from app.scanner.http_client import SafeHttpClient
 
-from app.scanner.http_client import SafeHttpClient, SafeResponse
-from app.scanner.masking import sanitize_evidence
+
+def _finding(
+    *,
+    severity: str,
+    title: str,
+    description: str,
+    evidence: str,
+    remediation: str,
+    target: str,
+    cwe_id: str,
+) -> Dict[str, Any]:
+    return {
+        "module": "https",
+        "severity": severity,
+        "title": title,
+        "description": description,
+        "evidence": evidence,
+        "remediation": remediation,
+        "affected_url": target,
+        "parameter": None,
+        "owasp_category": "A02:2021-Cryptographic Failures",
+        "cwe_id": cwe_id,
+        "confidence": "certain",
+        "http_method": "GET",
+    }
+
+
+def _https_url(target: str) -> str:
+    parsed = urlparse(target)
+    return urlunparse(("https", parsed.netloc, parsed.path, "", parsed.query, ""))
+
+
+def _http_url(target: str) -> str:
+    parsed = urlparse(target)
+    return urlunparse(("http", parsed.netloc, parsed.path, "", parsed.query, ""))
+
+
+def _is_certificate_error(error: Exception) -> bool:
+    message = str(error).lower()
+    return "certificate" in message or "cert_verify" in message
 
 
 def run(
     target_url: str,
     client: SafeHttpClient,
-    pages: List[str] = None,
+    pages: Optional[List[str]] = None,
+    should_cancel: Optional[Callable[[], bool]] = None,
 ) -> Dict[str, Any]:
-    """
-    Execute HTTPS and TLS transport checks against the target.
-    Returns:
-    {
-        "checks_run": int,
-        "checks_passed": int,
-        "findings": List[Dict[str, Any]]
-    }
-    """
+    """Run four transport checks and return standard module telemetry."""
     target = target_url.strip()
     parsed = urlparse(target)
-    is_target_https = parsed.scheme.lower() == "https"
-
     findings: List[Dict[str, Any]] = []
     checks_run = 0
     checks_passed = 0
 
-    # 1. Transport Scheme & HTTPS Redirection
-    checks_run += 1
-    if not is_target_https:
-        # Target was registered as plain HTTP: test if server automatically upgrades to HTTPS
-        resp_no_redirect: SafeResponse = client.get(target, follow_redirects=False)
-        location = resp_no_redirect.headers.get("Location", "")
-        is_redirect_to_https = (
-            resp_no_redirect.status_code in (301, 302, 307, 308)
-            and location.lower().startswith("https://")
-        )
+    if should_cancel and should_cancel():
+        return {"checks_run": checks_run, "checks_passed": checks_passed, "findings": findings}
 
-        if not is_redirect_to_https:
-            evidence_text = (
-                f"Requested: {target}\n"
-                f"HTTP Status: {resp_no_redirect.status_code}\n"
-                f"Location Header: {location or 'None'}\n"
-                f"Connection Protocol: Unencrypted HTTP"
-            )
-            findings.append({
-                "module": "https",
-                "severity": "high",
-                "title": "Cleartext HTTP Protocol in Use Without HTTPS Redirection",
-                "description": (
-                    "The target application is accessible over unencrypted HTTP and does not automatically "
-                    "redirect requests to HTTPS. All communication, including user credentials and session tokens, "
-                    "is transmitted in cleartext and vulnerable to eavesdropping and Man-in-the-Middle (MitM) attacks."
+    checks_run += 1
+    https_response = None
+    https_error = None
+    https_url = _https_url(target)
+    try:
+        https_response = client.get(https_url, verify_tls=False)
+    except Exception as exc:
+        https_error = exc
+        findings.append(
+            _finding(
+                severity="high",
+                title="HTTPS Is Not Available",
+                description=(
+                    "The target could not establish an HTTPS connection. Traffic sent to the HTTP endpoint "
+                    "is not protected by TLS and may be intercepted or modified in transit."
                 ),
-                "evidence": sanitize_evidence(evidence_text),
-                "remediation": "Deploy an SSL/TLS certificate and configure your web server to redirect all HTTP traffic to HTTPS (HTTP 301).",
-                "affected_url": target,
-                "parameter": None,
-                "owasp_category": "A02:2021-Cryptographic Failures",
-                "cwe_id": "CWE-319",
-                "confidence": "certain",
-                "http_method": "GET",
-            })
-        else:
-            checks_passed += 1
+                evidence=f"HTTPS request failed for {https_url}: {type(exc).__name__}",
+                remediation="Install a valid TLS certificate and make the application available over HTTPS.",
+                target=target,
+                cwe_id="CWE-319",
+            )
+        )
     else:
-        # Target is using HTTPS
         checks_passed += 1
 
-    # 2. Strict-Transport-Security (HSTS) on HTTPS
+    if should_cancel and should_cancel():
+        return {"checks_run": checks_run, "checks_passed": checks_passed, "findings": findings}
+
     checks_run += 1
-    if is_target_https:
-        response: SafeResponse = client.get(target)
-        hsts_header = response.headers.get("Strict-Transport-Security") or response.headers.get("strict-transport-security")
-        if not hsts_header:
-            evidence_text = f"Target: {target}\nHeaders received:\n" + "\n".join(f"{k}: {v}" for k, v in response.headers.items())
-            findings.append({
-                "module": "https",
-                "severity": "medium",
-                "title": "Missing Strict-Transport-Security (HSTS) on HTTPS Endpoint",
-                "description": (
-                    "Although the target provides HTTPS, it does not instruct browsers to remember this requirement via HSTS. "
-                    "First-time visitors and users following plaintext links remain vulnerable to SSL-stripping attacks."
+    http_url = target if parsed.scheme.lower() == "http" else _http_url(target)
+    try:
+        http_response = client.get(http_url, follow_redirects=False)
+        location = http_response.headers.get("location", "")
+        redirect_target = urljoin(http_url, location) if location else ""
+        redirects_to_https = (
+            http_response.status_code in (301, 302, 303, 307, 308)
+            and urlparse(redirect_target).scheme.lower() == "https"
+        )
+    except Exception as exc:
+        location = ""
+        redirects_to_https = False
+        redirect_error = type(exc).__name__
+    else:
+        redirect_error = None
+
+    if redirects_to_https:
+        checks_passed += 1
+    else:
+        evidence = (
+            f"HTTP endpoint: {http_url}\n"
+            f"Location header: {location or 'missing'}"
+            + (f"\nRequest error: {redirect_error}" if redirect_error else "")
+        )
+        findings.append(
+            _finding(
+                severity="medium",
+                title="HTTP Does Not Redirect to HTTPS",
+                description=(
+                    "The HTTP endpoint does not redirect clients to HTTPS, so users may continue "
+                    "communicating over an unencrypted connection."
                 ),
-                "evidence": sanitize_evidence(evidence_text),
-                "remediation": "Add the Strict-Transport-Security header: Strict-Transport-Security: max-age=31536000; includeSubDomains",
-                "affected_url": target,
-                "parameter": None,
-                "owasp_category": "A02:2021-Cryptographic Failures",
-                "cwe_id": "CWE-319",
-                "confidence": "certain",
-                "http_method": "GET",
-            })
+                evidence=evidence,
+                remediation="Configure HTTP to redirect all requests to the corresponding HTTPS URL.",
+                target=target,
+                cwe_id="CWE-319",
+            )
+        )
+
+    if should_cancel and should_cancel():
+        return {"checks_run": checks_run, "checks_passed": checks_passed, "findings": findings}
+
+    checks_run += 1
+    if https_response is None:
+        checks_passed += 1
+    else:
+        try:
+            client.get(https_url, verify_tls=True)
+        except Exception as exc:
+            if _is_certificate_error(exc):
+                certificate_detail = "The TLS certificate is expired or otherwise invalid."
+                if "expired" in str(exc).lower():
+                    certificate_detail = "The TLS certificate has expired."
+                findings.append(
+                    _finding(
+                        severity="high",
+                        title="HTTPS Certificate Is Invalid or Expired",
+                        description=(
+                            f"{certificate_detail} Browsers may reject the connection or display a security warning."
+                        ),
+                        evidence=f"TLS certificate verification failed for {https_url}.",
+                        remediation="Install a current TLS certificate valid for this hostname and renew it before expiry.",
+                        target=target,
+                        cwe_id="CWE-295",
+                    )
+                )
+            else:
+                findings.append(
+                    _finding(
+                        severity="high",
+                        title="HTTPS Certificate Could Not Be Validated",
+                        description="The target's TLS certificate could not be validated by the scanner.",
+                        evidence=f"TLS validation failed for {https_url}: {type(exc).__name__}.",
+                        remediation="Ensure the certificate chain is trusted, current, and valid for the target hostname.",
+                        target=target,
+                        cwe_id="CWE-295",
+                    )
+                )
         else:
             checks_passed += 1
+
+    if should_cancel and should_cancel():
+        return {"checks_run": checks_run, "checks_passed": checks_passed, "findings": findings}
+
+    checks_run += 1
+    if https_response is None:
+        checks_passed += 1
+    elif not https_response.headers.get("strict-transport-security"):
+        findings.append(
+            _finding(
+                severity="medium",
+                title="Missing Strict-Transport-Security Header",
+                description=(
+                    "The HTTPS response does not include HSTS, so browsers are not instructed to "
+                    "prefer HTTPS for future visits."
+                ),
+                evidence=f"Strict-Transport-Security header missing from {https_url}.",
+                remediation="Add Strict-Transport-Security with an appropriate max-age; consider includeSubDomains only when safe.",
+                target=target,
+                cwe_id="CWE-319",
+            )
+        )
     else:
-        # Plain HTTP cannot send valid HSTS
         checks_passed += 1
 
     return {

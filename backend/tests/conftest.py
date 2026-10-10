@@ -6,7 +6,10 @@ and will refuse to run against the production or development database.
 """
 
 import os
+import socket
 import sys
+import threading
+import time
 import pytest
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import sessionmaker
@@ -18,6 +21,9 @@ os.environ["JWT_SECRET_KEY"] = "test-secret-key-at-least-32-characters-long-for-
 backend_path = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if backend_path not in sys.path:
     sys.path.insert(0, backend_path)
+repository_path = os.path.abspath(os.path.join(backend_path, ".."))
+if repository_path not in sys.path:
+    sys.path.insert(0, repository_path)
 
 from app.core.settings import settings
 settings.JWT_SECRET_KEY = "test-secret-key-at-least-32-characters-long-for-pytest-safety-verification-token"
@@ -77,3 +83,30 @@ def client(db_session):
     with TestClient(app) as test_client:
         yield test_client
     app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def demo_target_url(monkeypatch):
+    """Run the demo target in a thread on an available loopback port."""
+    import uvicorn
+    from demo_target.main import app as demo_app
+
+    monkeypatch.setattr(settings, "ALLOW_LOCAL_TARGETS", True)
+    with socket.socket() as port_socket:
+        port_socket.bind(("127.0.0.1", 0))
+        port = port_socket.getsockname()[1]
+
+    server = uvicorn.Server(
+        uvicorn.Config(demo_app, host="127.0.0.1", port=port, log_level="error")
+    )
+    thread = threading.Thread(target=server.run, daemon=True)
+    thread.start()
+    deadline = time.monotonic() + 5
+    while not server.started and thread.is_alive() and time.monotonic() < deadline:
+        time.sleep(0.01)
+    assert server.started, "Demo target did not start before the test timeout."
+    try:
+        yield f"http://127.0.0.1:{port}"
+    finally:
+        server.should_exit = True
+        thread.join(timeout=5)

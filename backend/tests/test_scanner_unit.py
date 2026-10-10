@@ -1,4 +1,5 @@
 from app.scanner.masking import REDACTED, sanitize_evidence
+from app.scanner.modules.https import run as run_https_module
 from app.scanner.scoring import calculate_security_score, calculate_verdict
 
 
@@ -52,3 +53,41 @@ def test_sanitize_evidence_shortens_long_evidence():
 
     assert sanitized.startswith("x" * 20)
     assert "evidence truncated" in sanitized
+
+
+def test_https_module_reports_expired_certificate():
+    class Response:
+        status_code = 200
+        headers = {"location": "https://example.test", "strict-transport-security": "max-age=31536000"}
+
+    class Client:
+        def get(self, url, **kwargs):
+            if kwargs.get("verify_tls") is True:
+                raise RuntimeError("certificate has expired")
+            if url.startswith("http://"):
+                return Response()
+            return Response()
+
+    result = run_https_module("http://example.test", Client())
+
+    assert result["checks_run"] == 4
+    assert any("expired" in finding["title"].lower() for finding in result["findings"])
+
+
+def test_https_module_checks_http_redirect_and_hsts():
+    class Client:
+        def get(self, url, **kwargs):
+            if url.startswith("http://"):
+                return type(
+                    "RedirectResponse",
+                    (),
+                    {"status_code": 301, "headers": {"location": "https://example.test/"}},
+                )()
+            return type("HttpsResponse", (), {"status_code": 200, "headers": {}})()
+
+    result = run_https_module("https://example.test/", Client())
+
+    titles = {finding["title"] for finding in result["findings"]}
+    assert result["checks_run"] == 4
+    assert result["checks_passed"] == 3
+    assert titles == {"Missing Strict-Transport-Security Header"}

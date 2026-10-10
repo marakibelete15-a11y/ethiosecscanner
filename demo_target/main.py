@@ -8,7 +8,7 @@ Serves ownership verification proof via:
 
 import os
 from fastapi import FastAPI
-from fastapi.responses import HTMLResponse, PlainTextResponse
+from fastapi.responses import HTMLResponse, PlainTextResponse, Response
 from pydantic import BaseModel
 
 app = FastAPI(title="EthioSec Demo Target", version="1.0.0")
@@ -22,8 +22,15 @@ class TokenPayload(BaseModel):
 
 
 @app.get("/", response_class=HTMLResponse)
-def index():
-    """Serves root homepage with verification <meta> tag."""
+def index(response: Response):
+    """Serves verification proof and a deliberately insecure demo cookie."""
+    response.set_cookie(
+        key="demo_session",
+        value="demo-cookie-value",
+        secure=False,
+        httponly=False,
+        samesite=None,
+    )
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>

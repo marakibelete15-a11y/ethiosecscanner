@@ -16,13 +16,17 @@ from app.models import Finding, Scan
 from app.scanner.crawler import PAGE_LIMITS, crawl_target
 from app.scanner.http_client import SafeHttpClient
 from app.scanner.masking import sanitize_evidence
-from app.scanner.modules import headers
+from app.scanner.modules import cookies, headers, https
 from app.scanner.scoring import calculate_security_score
 
 logger = logging.getLogger("ethiosec.scanner")
 POLITE_DELAY_SECONDS = 0.25
 MODULE_TIMEOUT_SECONDS = float(settings.SCANNER_REQUEST_TIMEOUT_SECONDS)
-IMPLEMENTED_MODULES = {"headers": headers.run}
+IMPLEMENTED_MODULES = {
+	"headers": headers.run,
+	"https": https.run,
+	"cookies": cookies.run,
+}
 
 _cancel_lock = threading.Lock()
 _cancel_flags: dict[uuid.UUID, threading.Event] = {}

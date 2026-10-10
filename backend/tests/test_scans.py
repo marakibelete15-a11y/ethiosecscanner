@@ -33,7 +33,7 @@ def _add_verified_target(db_session, email, url="http://demo-target.test"):
 	return target
 
 
-def _mock_response(url="http://demo-target.test"):
+def _mock_response(url="http://demo-target.test", set_cookie_headers=None):
 	return SafeResponse(
 		status_code=200,
 		headers={"content-type": "text/html"},
@@ -41,6 +41,7 @@ def _mock_response(url="http://demo-target.test"):
 		url=url,
 		final_url=url,
 		elapsed_seconds=0.01,
+		set_cookie_headers=set_cookie_headers or [],
 	)
 
 
@@ -99,14 +100,14 @@ def test_failing_module_is_isolated_and_reported(client, db_session, monkeypatch
 	from app.scanner import engine
 
 	original_modules = dict(engine.IMPLEMENTED_MODULES)
-	engine.IMPLEMENTED_MODULES["headers"] = lambda *args, **kwargs: (_ for _ in ()).throw(
+	engine.IMPLEMENTED_MODULES["https"] = lambda *args, **kwargs: (_ for _ in ()).throw(
 		RuntimeError("isolated module failure")
 	)
 	try:
 		_start_worker_in_request_session(monkeypatch, db_session)
 		response = client.post(
 			"/api/scans",
-			json={"target_id": str(target.id), "modules": ["headers"]},
+			json={"target_id": str(target.id), "modules": ["https", "cookies"]},
 			headers=headers,
 		)
 		assert response.status_code == 201
@@ -114,8 +115,9 @@ def test_failing_module_is_isolated_and_reported(client, db_session, monkeypatch
 			f"/api/scans/{response.json()['id']}/status", headers=headers
 		).json()
 		assert progress["status"] == "completed"
-		assert progress["module_progress"]["headers"]["status"] == "error"
-		assert "isolated module failure" in progress["module_progress"]["headers"]["error"]
+		assert progress["module_progress"]["https"]["status"] == "error"
+		assert "isolated module failure" in progress["module_progress"]["https"]["error"]
+		assert progress["module_progress"]["cookies"]["status"] == "done"
 	finally:
 		engine.IMPLEMENTED_MODULES.clear()
 		engine.IMPLEMENTED_MODULES.update(original_modules)
@@ -255,3 +257,81 @@ def test_results_sort_critical_first_and_never_call_critical_safe(client, db_ses
 	assert results["verdict"] == "critical"
 	assert results["scanner_error_count"] == 1
 	assert [finding["severity"] for finding in results["findings"]] == ["critical", "low"]
+
+
+def test_https_module_reports_plain_http_demo(client, db_session, demo_target_url, monkeypatch):
+	headers, email = _register_and_login(client, "https_demo")
+	target = _add_verified_target(db_session, email, demo_target_url)
+	_start_worker_in_request_session(monkeypatch, db_session)
+
+	created = client.post(
+		"/api/scans",
+		json={"target_id": str(target.id), "modules": ["https"]},
+		headers=headers,
+	)
+	assert created.status_code == 201
+	results = client.get(
+		f"/api/scans/{created.json()['id']}/results", headers=headers
+	).json()
+	assert results["verdict"] == "high"
+	assert any("HTTPS Is Not Available" == item["title"] for item in results["findings"])
+
+
+def test_cookies_module_reports_flags_without_storing_cookie_value(
+	client, db_session, demo_target_url, monkeypatch
+):
+	headers, email = _register_and_login(client, "cookie_demo")
+	target = _add_verified_target(db_session, email, demo_target_url)
+	_start_worker_in_request_session(monkeypatch, db_session)
+
+	created = client.post(
+		"/api/scans",
+		json={"target_id": str(target.id), "modules": ["cookies"]},
+		headers=headers,
+	)
+	assert created.status_code == 201
+	findings = client.get(
+		f"/api/scans/{created.json()['id']}/results", headers=headers
+	).json()["findings"]
+	assert len(findings) == 3
+	assert {item["title"] for item in findings} == {
+		"Cookie Missing Secure Attribute",
+		"Cookie Missing HttpOnly Attribute",
+		"Cookie Missing SameSite Attribute",
+	}
+	assert all("demo-cookie-value" not in (item["evidence"] or "") for item in findings)
+
+
+def test_default_three_module_scan_counts_and_score(
+	client, db_session, demo_target_url, monkeypatch
+):
+	headers, email = _register_and_login(client, "three_modules")
+	target = _add_verified_target(db_session, email, demo_target_url)
+	_start_worker_in_request_session(monkeypatch, db_session)
+
+	created = client.post(
+		"/api/scans", json={"target_id": str(target.id)}, headers=headers
+	)
+	assert created.status_code == 201
+	assert created.json()["selected_modules"] == ["headers", "https", "cookies"]
+	status = client.get(
+		f"/api/scans/{created.json()['id']}/status", headers=headers
+	).json()
+	assert status["status"] == "completed"
+	assert status["progress"] == 100
+	assert status["module_progress"]["headers"]["checks_run"] == 6
+	assert status["module_progress"]["https"]["checks_run"] == 4
+	assert status["module_progress"]["cookies"]["checks_run"] == 3
+	assert [status["module_progress"][name]["findings_count"] for name in ("headers", "https", "cookies")] == [5, 2, 3]
+
+	results = client.get(
+		f"/api/scans/{created.json()['id']}/results", headers=headers
+	).json()
+	assert results["counts"] == {
+		"critical": 0,
+		"high": 1,
+		"medium": 5,
+		"low": 4,
+		"info": 0,
+	}
+	assert results["score"] == 66

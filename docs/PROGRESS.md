@@ -27,4 +27,22 @@ Scoring and masking unit tests pass. Masking covers all Authorization header sch
 - Result: **55 passed, 5 warnings in 51.60s**.
 - Warnings: Starlette deprecation for httpx-backed TestClient; deprecated `HTTP_422_UNPROCESSABLE_ENTITY` in existing validation responses and the new unknown-module response.
 - `git diff --check` passed; editor diagnostics found no errors in changed Python files.
-- Next step: implement additional scanner modules one at a time. `headers` is the only implemented module in this step; other recognized keys intentionally return `MODULE_NOT_IMPLEMENTED`.
+- Next step: implement additional scanner modules one at a time. Other recognized keys intentionally return `MODULE_NOT_IMPLEMENTED`.
+
+## Step 3D-1b: HTTPS and Cookie Modules
+
+- Audited the prior HTTPS draft: it covered only HTTP redirection and HSTS on HTTPS; it did not check HTTPS availability or validate certificates. The cookies module was a placeholder.
+- Added an opt-in `verify_tls` path to `SafeHttpClient`, preserving IP pinning, safe redirects, timeout, and response bounds. Responses now retain separate Set-Cookie header values for attribute checks.
+- Implemented HTTPS availability, HTTP-to-HTTPS redirection, certificate validity/expiry verification, and HSTS checks. Every finding uses the standard finding fields and non-sensitive evidence.
+- Implemented Secure, HttpOnly, and SameSite checks for each Set-Cookie header. Cookie values are never used in cookie-module finding evidence; central engine sanitization remains in place before saving all findings.
+- New scans default to `headers`, `https`, and `cookies`. Other recognized modules remain rejected as not implemented.
+- The demo homepage now sets a deliberately insecure cookie. Added a test fixture that starts the demo app on an available loopback port in a thread; its local-target allowance is fixture-scoped.
+- Focused command `venv/bin/pytest backend/tests/test_scanner_unit.py backend/tests/test_scans.py -v`: 16 passed.
+
+## Final Validation
+
+- Full command: `venv/bin/pytest backend/tests/ -v`
+- Result: **60 passed, 5 warnings in 94.47s**.
+- Warnings: Starlette deprecation for the httpx-backed TestClient and deprecated `HTTP_422_UNPROCESSABLE_ENTITY` usage in existing validation responses and the unknown-module test.
+- `git diff --check` passed; editor diagnostics found no errors in changed Python files.
+- Next step: proceed to the next explicitly selected scanner modules; do not infer further SRS requirements without the SRS text.
