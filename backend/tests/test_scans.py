@@ -63,11 +63,16 @@ def test_scan_demo_target_finds_missing_security_headers(client, db_session, mon
 		def get(self, url, **kwargs):
 			return _mock_response(url)
 
+		def request(self, method, url, **kwargs):
+			return _mock_response(url)
+
 	monkeypatch.setattr("app.scanner.engine.SafeHttpClient", FakeSafeHttpClient)
 	_start_worker_in_request_session(monkeypatch, db_session)
 
 	created = client.post(
-		"/api/scans", json={"target_id": str(target.id)}, headers=headers
+		"/api/scans",
+		json={"target_id": str(target.id), "modules": ["headers"]},
+		headers=headers,
 	)
 	assert created.status_code == 201
 	scan_id = created.json()["id"]
@@ -94,7 +99,14 @@ def test_failing_module_is_isolated_and_reported(client, db_session, monkeypatch
 	monkeypatch.setattr("app.routers.scans.validate_target_url", lambda url, **kwargs: url)
 	monkeypatch.setattr(
 		"app.scanner.engine.SafeHttpClient",
-		lambda: type("Client", (), {"get": lambda self, url, **kwargs: _mock_response(url)})(),
+		lambda: type(
+			"Client",
+			(),
+			{
+				"get": lambda self, url, **kwargs: _mock_response(url),
+				"request": lambda self, method, url, **kwargs: _mock_response(url),
+			},
+		)(),
 	)
 
 	from app.scanner import engine
@@ -143,7 +155,14 @@ def test_another_users_scan_is_hidden_with_404(client, db_session, monkeypatch):
 	monkeypatch.setattr("app.routers.scans.validate_target_url", lambda url, **kwargs: url)
 	monkeypatch.setattr(
 		"app.scanner.engine.SafeHttpClient",
-		lambda: type("Client", (), {"get": lambda self, url, **kwargs: _mock_response(url)})(),
+		lambda: type(
+			"Client",
+			(),
+			{
+				"get": lambda self, url, **kwargs: _mock_response(url),
+				"request": lambda self, method, url, **kwargs: _mock_response(url),
+			},
+		)(),
 	)
 	_start_worker_in_request_session(monkeypatch, db_session)
 
@@ -302,7 +321,7 @@ def test_cookies_module_reports_flags_without_storing_cookie_value(
 	assert all("demo-cookie-value" not in (item["evidence"] or "") for item in findings)
 
 
-def test_default_three_module_scan_counts_and_score(
+def test_default_six_module_scan_counts_and_score(
 	client, db_session, demo_target_url, monkeypatch
 ):
 	headers, email = _register_and_login(client, "three_modules")
@@ -313,7 +332,7 @@ def test_default_three_module_scan_counts_and_score(
 		"/api/scans", json={"target_id": str(target.id)}, headers=headers
 	)
 	assert created.status_code == 201
-	assert created.json()["selected_modules"] == ["headers", "https", "cookies"]
+	assert created.json()["selected_modules"] == ["headers", "https", "cookies", "cors", "http_methods", "info_disclosure"]
 	status = client.get(
 		f"/api/scans/{created.json()['id']}/status", headers=headers
 	).json()
@@ -322,16 +341,135 @@ def test_default_three_module_scan_counts_and_score(
 	assert status["module_progress"]["headers"]["checks_run"] == 6
 	assert status["module_progress"]["https"]["checks_run"] == 4
 	assert status["module_progress"]["cookies"]["checks_run"] == 3
-	assert [status["module_progress"][name]["findings_count"] for name in ("headers", "https", "cookies")] == [5, 2, 3]
+	assert status["module_progress"]["cors"]["checks_run"] == 1
+	assert status["module_progress"]["http_methods"]["checks_run"] == 2
+	assert status["module_progress"]["info_disclosure"]["checks_run"] == 6
+	assert [
+		status["module_progress"][name]["findings_count"]
+		for name in ("headers", "https", "cookies", "cors", "http_methods", "info_disclosure")
+	] == [5, 2, 3, 1, 2, 3]
 
 	results = client.get(
 		f"/api/scans/{created.json()['id']}/results", headers=headers
 	).json()
 	assert results["counts"] == {
 		"critical": 0,
-		"high": 1,
-		"medium": 5,
-		"low": 4,
+		"high": 2,
+		"medium": 7,
+		"low": 7,
 		"info": 0,
 	}
-	assert results["score"] == 66
+	assert results["score"] == 45
+
+
+def test_cors_module_detects_reflected_origin_with_credentials(
+	client, db_session, demo_target_url, monkeypatch
+):
+	headers, email = _register_and_login(client, "cors_demo")
+	target = _add_verified_target(db_session, email, demo_target_url)
+	_start_worker_in_request_session(monkeypatch, db_session)
+	created = client.post(
+		"/api/scans",
+		json={"target_id": str(target.id), "modules": ["cors"]},
+		headers=headers,
+	)
+	results = client.get(
+		f"/api/scans/{created.json()['id']}/results", headers=headers
+	).json()
+	assert results["counts"]["high"] == 1
+	assert results["findings"][0]["title"] == "Arbitrary Origin Reflected with Credentials"
+
+
+def test_http_methods_module_detects_allow_and_trace_on_demo(
+	client, db_session, demo_target_url, monkeypatch
+):
+	headers, email = _register_and_login(client, "methods_demo")
+	target = _add_verified_target(db_session, email, demo_target_url)
+	_start_worker_in_request_session(monkeypatch, db_session)
+	created = client.post(
+		"/api/scans",
+		json={"target_id": str(target.id), "modules": ["http_methods"]},
+		headers=headers,
+	)
+	findings = client.get(
+		f"/api/scans/{created.json()['id']}/results", headers=headers
+	).json()["findings"]
+	assert {finding["title"] for finding in findings} == {
+		"Risky HTTP Methods Advertised",
+		"HTTP TRACE Method Is Accepted",
+	}
+	assert any("PUT" in finding["evidence"] and "DELETE" in finding["evidence"] for finding in findings)
+
+
+def test_info_disclosure_module_detects_demo_headers_and_stack_trace(
+	client, db_session, demo_target_url, monkeypatch
+):
+	headers, email = _register_and_login(client, "disclosure_demo")
+	target = _add_verified_target(db_session, email, demo_target_url)
+	_start_worker_in_request_session(monkeypatch, db_session)
+	created = client.post(
+		"/api/scans",
+		json={"target_id": str(target.id), "modules": ["info_disclosure"]},
+		headers=headers,
+	)
+	findings = client.get(
+		f"/api/scans/{created.json()['id']}/results", headers=headers
+	).json()["findings"]
+	titles = {finding["title"] for finding in findings}
+	assert "Server Version Disclosure" in titles
+	assert "X-Powered-By Version Disclosure" in titles
+	assert "Verbose Error Disclosure: Error Route" in titles
+
+
+def test_cors_module_has_no_false_positive_on_clean_target(
+	client, db_session, clean_target_url, monkeypatch
+):
+	headers, email = _register_and_login(client, "cors_clean")
+	target = _add_verified_target(db_session, email, clean_target_url)
+	_start_worker_in_request_session(monkeypatch, db_session)
+	created = client.post(
+		"/api/scans",
+		json={"target_id": str(target.id), "modules": ["cors"]},
+		headers=headers,
+	)
+	results = client.get(
+		f"/api/scans/{created.json()['id']}/results", headers=headers
+	).json()
+	assert results["findings"] == []
+	assert results["passed_count"] == 1
+
+
+def test_http_methods_module_has_no_false_positive_on_clean_target(
+	client, db_session, clean_target_url, monkeypatch
+):
+	headers, email = _register_and_login(client, "methods_clean")
+	target = _add_verified_target(db_session, email, clean_target_url)
+	_start_worker_in_request_session(monkeypatch, db_session)
+	created = client.post(
+		"/api/scans",
+		json={"target_id": str(target.id), "modules": ["http_methods"]},
+		headers=headers,
+	)
+	results = client.get(
+		f"/api/scans/{created.json()['id']}/results", headers=headers
+	).json()
+	assert results["findings"] == []
+	assert results["passed_count"] == 2
+
+
+def test_info_disclosure_module_has_no_false_positive_on_clean_target(
+	client, db_session, clean_target_url, monkeypatch
+):
+	headers, email = _register_and_login(client, "disclosure_clean")
+	target = _add_verified_target(db_session, email, clean_target_url)
+	_start_worker_in_request_session(monkeypatch, db_session)
+	created = client.post(
+		"/api/scans",
+		json={"target_id": str(target.id), "modules": ["info_disclosure"]},
+		headers=headers,
+	)
+	results = client.get(
+		f"/api/scans/{created.json()['id']}/results", headers=headers
+	).json()
+	assert results["findings"] == []
+	assert results["passed_count"] == 6

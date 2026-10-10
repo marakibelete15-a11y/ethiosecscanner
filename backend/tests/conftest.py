@@ -11,6 +11,8 @@ import sys
 import threading
 import time
 import pytest
+from contextlib import contextmanager
+from fastapi import FastAPI, Response
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import sessionmaker
 
@@ -28,6 +30,44 @@ if repository_path not in sys.path:
 from app.core.settings import settings
 settings.JWT_SECRET_KEY = "test-secret-key-at-least-32-characters-long-for-pytest-safety-verification-token"
 from app.models import Base
+
+
+@pytest.fixture(autouse=True)
+def disable_polite_delay_in_tests(monkeypatch):
+    """Keep production pacing but avoid artificial sleeps in the test suite."""
+    from app.scanner import engine
+
+    monkeypatch.setattr(engine, "POLITE_DELAY_SECONDS", 0)
+
+
+@contextmanager
+def _serve_local_app(test_app, server_header=True):
+    import uvicorn
+
+    with socket.socket() as port_socket:
+        port_socket.bind(("127.0.0.1", 0))
+        port = port_socket.getsockname()[1]
+    server = uvicorn.Server(
+        uvicorn.Config(
+            test_app,
+            host="127.0.0.1",
+            port=port,
+            log_level="error",
+            server_header=server_header,
+        )
+    )
+    thread = threading.Thread(target=server.run, daemon=True)
+    thread.start()
+    deadline = time.monotonic() + 5
+    while not server.started and thread.is_alive() and time.monotonic() < deadline:
+        time.sleep(0.01)
+    if not server.started:
+        raise RuntimeError("Local test target failed to start.")
+    try:
+        yield f"http://127.0.0.1:{port}"
+    finally:
+        server.should_exit = True
+        thread.join(timeout=5)
 
 
 @pytest.fixture(scope="session")
@@ -88,25 +128,26 @@ def client(db_session):
 @pytest.fixture
 def demo_target_url(monkeypatch):
     """Run the demo target in a thread on an available loopback port."""
-    import uvicorn
     from demo_target.main import app as demo_app
 
     monkeypatch.setattr(settings, "ALLOW_LOCAL_TARGETS", True)
-    with socket.socket() as port_socket:
-        port_socket.bind(("127.0.0.1", 0))
-        port = port_socket.getsockname()[1]
+    with _serve_local_app(demo_app) as url:
+        yield url
 
-    server = uvicorn.Server(
-        uvicorn.Config(demo_app, host="127.0.0.1", port=port, log_level="error")
-    )
-    thread = threading.Thread(target=server.run, daemon=True)
-    thread.start()
-    deadline = time.monotonic() + 5
-    while not server.started and thread.is_alive() and time.monotonic() < deadline:
-        time.sleep(0.01)
-    assert server.started, "Demo target did not start before the test timeout."
-    try:
-        yield f"http://127.0.0.1:{port}"
-    finally:
-        server.should_exit = True
-        thread.join(timeout=5)
+
+@pytest.fixture
+def clean_target_url(monkeypatch):
+    """Run a benign local app with no risky methods, version banners, or CORS policy."""
+    clean_app = FastAPI()
+
+    @clean_app.get("/")
+    def clean_home():
+        return {"status": "ok"}
+
+    @clean_app.options("/")
+    def clean_options():
+        return Response(status_code=200, headers={"Allow": "GET, HEAD, OPTIONS"})
+
+    monkeypatch.setattr(settings, "ALLOW_LOCAL_TARGETS", True)
+    with _serve_local_app(clean_app, server_header=False) as url:
+        yield url

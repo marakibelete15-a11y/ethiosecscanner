@@ -46,3 +46,22 @@ Scoring and masking unit tests pass. Masking covers all Authorization header sch
 - Warnings: Starlette deprecation for the httpx-backed TestClient and deprecated `HTTP_422_UNPROCESSABLE_ENTITY` usage in existing validation responses and the unknown-module test.
 - `git diff --check` passed; editor diagnostics found no errors in changed Python files.
 - Next step: proceed to the next explicitly selected scanner modules; do not infer further SRS requirements without the SRS text.
+
+## Step 3D-2: CORS, HTTP Methods, and Information Disclosure
+
+- Added `cors`, `http_methods`, and `info_disclosure` to the engine registry. New scans default to all six built modules: headers, https, cookies, cors, http_methods, info_disclosure.
+- CORS sends a synthetic invalid Origin and reports wildcard ACAO or reflected origin with credential permission (High).
+- HTTP methods uses only OPTIONS and TRACE; it reports risky Allow values and accepted TRACE. No PUT or DELETE request is sent.
+- Information disclosure checks Server/X-Powered-By/X-AspNet-Version and safely requests missing, malformed, and explicit error paths.
+- Demo target now reflects Origin with credentials, advertises risky methods, accepts TRACE, returns version headers, and has a fake stack-trace route. Its start command binds to loopback.
+- Added clean-target integration tests for all three modules and all-module scan totals. The all-six demo scan records 2 High, 7 Medium, 7 Low findings and score 45.
+- Tests run against local PostgreSQL plus loopback HTTP only. Existing SSRF network tests mock DNS/HTTP transport; no public internet call is part of the suite.
+- Test-only fixture disables the scanner's 250 ms polite-request delay; production pacing remains unchanged.
+- Full profiled command: `venv/bin/pytest backend/tests/ -v --durations=20`
+- Result: **68 passed, 5 warnings in 47.83s**. Slowest tests: two-user target tests 2.45–2.58s; two-user scan isolation 2.33s; all-six scan 1.70s. Scanner integration cases were generally 1.2–1.7s, largely including per-test registration/login and password hashing.
+- The earlier 94.47s run was not profiled, so its exact extra time cannot be apportioned. Current durations identify repeated auth setup and multi-user database tests as the slowest measured cases; the test-only delay removal keeps production politeness intact and brings this profiled full run below 48s.
+- `git diff --check` passed; no editor diagnostics in changed Python files.
+
+## Next
+
+Await the next requested module list. Do not infer unprovided SRS requirements.

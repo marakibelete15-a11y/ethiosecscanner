@@ -13,6 +13,18 @@ from pydantic import BaseModel
 
 app = FastAPI(title="EthioSec Demo Target", version="1.0.0")
 
+
+@app.middleware("http")
+async def expose_deliberate_demo_headers(request, call_next):
+    response = await call_next(request)
+    origin = request.headers.get("origin")
+    if origin:
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+    response.headers["Server"] = "EthioSecDemo/1.0"
+    response.headers["X-Powered-By"] = "EthioSecDemo/1.0"
+    return response
+
 # In-memory token storage (defaults from environment variable DEMO_VERIFY_TOKEN)
 CURRENT_TOKEN = os.environ.get("DEMO_VERIFY_TOKEN", "ethiosec-demo-initial-token-12345")
 
@@ -44,6 +56,30 @@ def index(response: Response):
 </body>
 </html>
 """
+
+
+@app.options("/")
+def options_root():
+    return Response(
+        status_code=200,
+        headers={"Allow": "GET, HEAD, OPTIONS, PUT, DELETE, TRACE"},
+    )
+
+
+@app.api_route("/", methods=["TRACE"], response_class=PlainTextResponse)
+def trace_root():
+    return "TRACE accepted by the deliberately vulnerable demo target."
+
+
+@app.get("/error", response_class=PlainTextResponse)
+def verbose_error():
+    return PlainTextResponse(
+        "Traceback (most recent call last):\n"
+        "  File \"/srv/demo_target/main.py\", line 99, in vulnerable_handler\n"
+        "    raise RuntimeError('demo stack trace')\n"
+        "RuntimeError: demo stack trace",
+        status_code=500,
+    )
 
 
 @app.get("/.well-known/ethiosec-challenge.txt", response_class=PlainTextResponse)

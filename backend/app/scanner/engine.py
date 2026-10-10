@@ -17,6 +17,7 @@ from app.scanner.crawler import PAGE_LIMITS, crawl_target
 from app.scanner.http_client import SafeHttpClient
 from app.scanner.masking import sanitize_evidence
 from app.scanner.modules import cookies, headers, https
+from app.scanner.modules import cors, http_methods, info_disclosure
 from app.scanner.scoring import calculate_security_score
 
 logger = logging.getLogger("ethiosec.scanner")
@@ -26,6 +27,9 @@ IMPLEMENTED_MODULES = {
 	"headers": headers.run,
 	"https": https.run,
 	"cookies": cookies.run,
+	"cors": cors.run,
+	"http_methods": http_methods.run,
+	"info_disclosure": info_disclosure.run,
 }
 
 _cancel_lock = threading.Lock()
@@ -43,12 +47,15 @@ class _PoliteClient:
 		self._lock = threading.Lock()
 
 	def get(self, url: str, **kwargs):
+		return self.request("GET", url, **kwargs)
+
+	def request(self, method: str, url: str, **kwargs):
 		with self._lock:
 			wait_for = POLITE_DELAY_SECONDS - (time.monotonic() - self._last_request)
 			if wait_for > 0:
 				time.sleep(wait_for)
 			self._last_request = time.monotonic()
-		return self._client.get(url, **kwargs)
+		return self._client.request(method, url, **kwargs)
 
 
 def _cancel_event(scan_id: uuid.UUID) -> threading.Event:

@@ -1,5 +1,9 @@
+from types import SimpleNamespace
+
 from app.scanner.masking import REDACTED, sanitize_evidence
+from app.scanner.modules.cors import run as run_cors_module
 from app.scanner.modules.https import run as run_https_module
+from app.scanner.modules.http_methods import run as run_http_methods_module
 from app.scanner.scoring import calculate_security_score, calculate_verdict
 
 
@@ -91,3 +95,35 @@ def test_https_module_checks_http_redirect_and_hsts():
     assert result["checks_run"] == 4
     assert result["checks_passed"] == 3
     assert titles == {"Missing Strict-Transport-Security Header"}
+
+
+def test_cors_module_reports_wildcard_origin():
+    class Client:
+        def get(self, url, **kwargs):
+            assert kwargs["headers"]["Origin"] == "https://ethiosec-invalid-origin.example"
+            return SimpleNamespace(
+                headers={"access-control-allow-origin": "*", "access-control-allow-credentials": "true"}
+            )
+
+    result = run_cors_module("http://example.test", Client())
+
+    assert result["checks_run"] == 1
+    assert result["findings"][0]["severity"] == "medium"
+    assert result["findings"][0]["evidence"] == "Access-Control-Allow-Origin: *"
+
+
+def test_http_methods_module_only_sends_options_and_trace():
+    class Client:
+        methods = []
+
+        def request(self, method, url, **kwargs):
+            self.methods.append(method)
+            if method == "OPTIONS":
+                return SimpleNamespace(status_code=200, headers={"allow": "GET, PUT, DELETE, TRACE"})
+            return SimpleNamespace(status_code=200, headers={})
+
+    client = Client()
+    result = run_http_methods_module("http://example.test", client)
+
+    assert client.methods == ["OPTIONS", "TRACE"]
+    assert len(result["findings"]) == 2
