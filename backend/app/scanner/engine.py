@@ -13,11 +13,13 @@ from sqlalchemy.orm import Session
 from app.core.database import SessionLocal
 from app.core.settings import settings
 from app.models import Finding, Scan
-from app.scanner.crawler import PAGE_LIMITS, crawl_target
+from app.scanner.crawler import PAGE_LIMITS, CrawlResult, crawl_target
 from app.scanner.http_client import SafeHttpClient
 from app.scanner.masking import sanitize_evidence
 from app.scanner.modules import cookies, headers, https
 from app.scanner.modules import cors, http_methods, info_disclosure
+from app.scanner.modules import exposed_files, sqli, xss
+from app.scanner.modules import exposed_files, sqli, xss
 from app.scanner.scoring import calculate_security_score
 
 logger = logging.getLogger("ethiosec.scanner")
@@ -30,6 +32,12 @@ IMPLEMENTED_MODULES = {
 	"cors": cors.run,
 	"http_methods": http_methods.run,
 	"info_disclosure": info_disclosure.run,
+	"exposed_files": exposed_files.run,
+	"sqli": sqli.run,
+	"xss": xss.run,
+	"exposed_files": exposed_files.run,
+	"sqli": sqli.run,
+	"xss": xss.run,
 }
 
 _cancel_lock = threading.Lock()
@@ -81,7 +89,7 @@ def start_scan_in_background(scan_id: uuid.UUID) -> threading.Thread:
 	return worker
 
 
-def _run_module_with_timeout(module, target_url, client, should_cancel):
+def _run_module_with_timeout(module, target_url, client, should_cancel, **module_kwargs):
 	executor = ThreadPoolExecutor(max_workers=1)
 	future = executor.submit(
 		module,
@@ -89,6 +97,7 @@ def _run_module_with_timeout(module, target_url, client, should_cancel):
 		client,
 		pages=[target_url],
 		should_cancel=should_cancel,
+		**module_kwargs,
 	)
 	try:
 		return future.result(timeout=MODULE_TIMEOUT_SECONDS)
@@ -138,14 +147,16 @@ def run_scan_worker(scan_id: uuid.UUID, db: Session | None = None) -> None:
 
 		client = _PoliteClient(SafeHttpClient())
 		if not event.is_set():
-			pages = crawl_target(
+			crawl_result = crawl_target(
 				scan.target_url,
 				PAGE_LIMITS[scan.depth],
 				client,
 				should_cancel=event.is_set,
+				depth=scan.depth,
 			)
 		else:
-			pages = []
+			crawl_result = CrawlResult()
+		pages = crawl_result.pages
 
 		selected = list(scan.selected_modules or [])
 		total_modules = len(selected)
@@ -170,18 +181,39 @@ def run_scan_worker(scan_id: uuid.UUID, db: Session | None = None) -> None:
 			checks_run = 0
 			checks_passed = 0
 			module_findings = []
+			module_notes = []
 			error = None
 			try:
 				runner = IMPLEMENTED_MODULES[module_name]
-				for page_url in pages:
-					if event.is_set():
-						break
+				if module_name in {"sqli", "xss"} and scan.depth == "quick":
+					pass
+				elif module_name in {"exposed_files", "sqli", "xss"}:
 					result = _run_module_with_timeout(
-						runner, page_url, client, event.is_set
+						runner,
+						scan.target_url,
+						client,
+						event.is_set,
+						crawl_result=crawl_result,
+						depth=scan.depth,
 					)
 					checks_run += int(result.get("checks_run", 0))
 					checks_passed += int(result.get("checks_passed", 0))
 					module_findings.extend(result.get("findings", []))
+					module_notes.extend(result.get("notes", []))
+				else:
+					for page_url in pages:
+						if event.is_set():
+							break
+						result = _run_module_with_timeout(
+							runner,
+							page_url,
+							client,
+							event.is_set,
+						)
+						checks_run += int(result.get("checks_run", 0))
+						checks_passed += int(result.get("checks_passed", 0))
+						module_findings.extend(result.get("findings", []))
+						module_notes.extend(result.get("notes", []))
 			except Exception as exc:
 				error = str(exc).strip()[:160] or "Module failed."
 				logger.warning("Scan %s module %s failed: %s", scan.id, module_name, error)
@@ -204,6 +236,7 @@ def run_scan_worker(scan_id: uuid.UUID, db: Session | None = None) -> None:
 					"findings_count": len(module_findings),
 					"status": "error" if error else "done",
 					"error": error,
+					"notes": module_notes,
 				},
 			)
 			scan.progress = int(((module_index + 1) / total_modules) * 100)

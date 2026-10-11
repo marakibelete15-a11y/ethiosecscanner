@@ -7,6 +7,7 @@ Serves ownership verification proof via:
 """
 
 import os
+from html import escape
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse, PlainTextResponse, Response
 from pydantic import BaseModel
@@ -27,6 +28,7 @@ async def expose_deliberate_demo_headers(request, call_next):
 
 # In-memory token storage (defaults from environment variable DEMO_VERIFY_TOKEN)
 CURRENT_TOKEN = os.environ.get("DEMO_VERIFY_TOKEN", "ethiosec-demo-initial-token-12345")
+POST_FORM_SUBMISSIONS = 0
 
 
 class TokenPayload(BaseModel):
@@ -53,9 +55,63 @@ def index(response: Response):
 <body>
     <h1>EthioSec Scanner - Deliberately Vulnerable Demo Target</h1>
     <p>Target verification token: <code>{CURRENT_TOKEN}</code></p>
+    <nav>
+        <a href="/product?id=1">Product</a>
+        <a href="/search?q=demo">Search</a>
+        <a href="/.env">Fake environment file</a>
+        <a href="/.git/HEAD">Fake Git ref</a>
+        <a href="/safe-search?q=demo">Safe search</a>
+        <a href="/safe-product?id=1">Safe product</a>
+    </nav>
+    <form action="/search" method="get"><input name="q" value="demo"></form>
+    <form action="/submit" method="post"><input name="comment" value="demo"></form>
 </body>
 </html>
 """
+
+
+@app.get("/.env", response_class=PlainTextResponse)
+def fake_env():
+	return "DEMO_MODE=true\nFAKE_API_KEY=not-a-real-secret\nFAKE_DB_PASSWORD=example-only\n"
+
+
+@app.get("/.git/HEAD", response_class=PlainTextResponse)
+def fake_git_head():
+	return "ref: refs/heads/demo\n"
+
+
+@app.get("/product", response_class=PlainTextResponse)
+def product(id: str = "1"):
+	if "'" in id:
+		return PlainTextResponse("SQLite3.OperationalError: unrecognized token near quote", status_code=500)
+	return f"Demo product {id}"
+
+
+@app.get("/search", response_class=HTMLResponse)
+def search(q: str = ""):
+	return f"<html><body><h1>Search results for: {q}</h1></body></html>"
+
+
+@app.get("/safe-search", response_class=HTMLResponse)
+def safe_search(q: str = ""):
+	return f"<html><body><h1>Search results for: {escape(q, quote=True)}</h1></body></html>"
+
+
+@app.get("/safe-product", response_class=PlainTextResponse)
+def safe_product(id: str = "1"):
+	return f"Demo product {escape(id, quote=True)}"
+
+
+@app.post("/submit")
+def submit_post_form():
+	global POST_FORM_SUBMISSIONS
+	POST_FORM_SUBMISSIONS += 1
+	return {"submitted": True}
+
+
+@app.get("/.well-known/security.txt", response_class=PlainTextResponse)
+def security_txt():
+	return "Contact: security@example.invalid\n"
 
 
 @app.options("/")
@@ -100,3 +156,8 @@ def set_token(payload: TokenPayload):
 def get_token():
     """Inspect current active verification token."""
     return {"token": CURRENT_TOKEN}
+
+
+@app.get("/{unmatched_path:path}", response_class=HTMLResponse)
+def soft_not_found(unmatched_path: str):
+	return HTMLResponse("<html><body><h1>page not found</h1></body></html>", status_code=200)

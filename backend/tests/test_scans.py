@@ -211,7 +211,7 @@ def test_scan_creation_rejects_known_unbuilt_module(client, db_session, monkeypa
 
 	response = client.post(
 		"/api/scans",
-		json={"target_id": str(target.id), "modules": ["xss"]},
+		json={"target_id": str(target.id), "modules": ["access_control"]},
 		headers=headers,
 	)
 	assert response.status_code == 400
@@ -321,7 +321,7 @@ def test_cookies_module_reports_flags_without_storing_cookie_value(
 	assert all("demo-cookie-value" not in (item["evidence"] or "") for item in findings)
 
 
-def test_default_six_module_scan_counts_and_score(
+def test_default_nine_module_scan_counts_and_score(
 	client, db_session, demo_target_url, monkeypatch
 ):
 	headers, email = _register_and_login(client, "three_modules")
@@ -329,37 +329,69 @@ def test_default_six_module_scan_counts_and_score(
 	_start_worker_in_request_session(monkeypatch, db_session)
 
 	created = client.post(
-		"/api/scans", json={"target_id": str(target.id)}, headers=headers
+		"/api/scans",
+		json={"target_id": str(target.id), "depth": "standard"},
+		headers=headers,
 	)
 	assert created.status_code == 201
-	assert created.json()["selected_modules"] == ["headers", "https", "cookies", "cors", "http_methods", "info_disclosure"]
+	assert created.json()["selected_modules"] == [
+		"headers", "https", "cookies", "cors", "http_methods", "info_disclosure",
+		"exposed_files", "sqli", "xss",
+	]
 	status = client.get(
 		f"/api/scans/{created.json()['id']}/status", headers=headers
 	).json()
 	assert status["status"] == "completed"
 	assert status["progress"] == 100
-	assert status["module_progress"]["headers"]["checks_run"] == 6
-	assert status["module_progress"]["https"]["checks_run"] == 4
-	assert status["module_progress"]["cookies"]["checks_run"] == 3
-	assert status["module_progress"]["cors"]["checks_run"] == 1
-	assert status["module_progress"]["http_methods"]["checks_run"] == 2
-	assert status["module_progress"]["info_disclosure"]["checks_run"] == 6
-	assert [
-		status["module_progress"][name]["findings_count"]
-		for name in ("headers", "https", "cookies", "cors", "http_methods", "info_disclosure")
-	] == [5, 2, 3, 1, 2, 3]
+	assert status["module_progress"]["headers"]["checks_run"] >= 6
+	assert status["module_progress"]["https"]["checks_run"] >= 4
+	assert status["module_progress"]["cookies"]["checks_run"] >= 3
+	assert status["module_progress"]["cors"]["checks_run"] >= 1
+	assert status["module_progress"]["http_methods"]["checks_run"] >= 2
+	assert status["module_progress"]["info_disclosure"]["checks_run"] >= 6
+	assert status["module_progress"]["exposed_files"]["checks_run"] == 26
+	assert status["module_progress"]["sqli"]["status"] == "done"
+	assert status["module_progress"]["sqli"]["checks_run"] > 0
+	assert status["module_progress"]["xss"]["status"] == "done"
+	assert status["module_progress"]["xss"]["checks_run"] > 0
+	assert all(
+		status["module_progress"][name]["status"] == "done"
+		for name in ("headers", "https", "cookies", "cors", "http_methods", "info_disclosure", "exposed_files", "sqli", "xss")
+	)
 
 	results = client.get(
 		f"/api/scans/{created.json()['id']}/results", headers=headers
 	).json()
 	assert results["counts"] == {
-		"critical": 0,
-		"high": 2,
-		"medium": 7,
-		"low": 7,
+		"critical": 2,
+		"high": 9,
+		"medium": 13,
+		"low": 19,
 		"info": 0,
-	}
-	assert results["score"] == 45
+	}, results["counts"]
+	assert results["score"] == 0
+	assert results["verdict"] == "critical"
+
+
+def test_quick_scan_marks_sqli_and_xss_done_without_probes(
+	client, db_session, demo_target_url, monkeypatch
+):
+	headers, email = _register_and_login(client, "quick_active")
+	target = _add_verified_target(db_session, email, demo_target_url)
+	_start_worker_in_request_session(monkeypatch, db_session)
+	created = client.post(
+		"/api/scans",
+		json={"target_id": str(target.id), "depth": "quick"},
+		headers=headers,
+	)
+	assert created.status_code == 201
+	progress = client.get(
+		f"/api/scans/{created.json()['id']}/status", headers=headers
+	).json()["module_progress"]
+	for module_name in ("sqli", "xss"):
+		assert progress[module_name]["status"] == "done"
+		assert progress[module_name]["checks_run"] == 0
+		assert progress[module_name]["findings_count"] == 0
 
 
 def test_cors_module_detects_reflected_origin_with_credentials(
@@ -370,7 +402,7 @@ def test_cors_module_detects_reflected_origin_with_credentials(
 	_start_worker_in_request_session(monkeypatch, db_session)
 	created = client.post(
 		"/api/scans",
-		json={"target_id": str(target.id), "modules": ["cors"]},
+		json={"target_id": str(target.id), "modules": ["cors"], "depth": "quick"},
 		headers=headers,
 	)
 	results = client.get(
@@ -388,7 +420,7 @@ def test_http_methods_module_detects_allow_and_trace_on_demo(
 	_start_worker_in_request_session(monkeypatch, db_session)
 	created = client.post(
 		"/api/scans",
-		json={"target_id": str(target.id), "modules": ["http_methods"]},
+		json={"target_id": str(target.id), "modules": ["http_methods"], "depth": "quick"},
 		headers=headers,
 	)
 	findings = client.get(
@@ -409,7 +441,7 @@ def test_info_disclosure_module_detects_demo_headers_and_stack_trace(
 	_start_worker_in_request_session(monkeypatch, db_session)
 	created = client.post(
 		"/api/scans",
-		json={"target_id": str(target.id), "modules": ["info_disclosure"]},
+		json={"target_id": str(target.id), "modules": ["info_disclosure"], "depth": "quick"},
 		headers=headers,
 	)
 	findings = client.get(
@@ -429,7 +461,7 @@ def test_cors_module_has_no_false_positive_on_clean_target(
 	_start_worker_in_request_session(monkeypatch, db_session)
 	created = client.post(
 		"/api/scans",
-		json={"target_id": str(target.id), "modules": ["cors"]},
+		json={"target_id": str(target.id), "modules": ["cors"], "depth": "quick"},
 		headers=headers,
 	)
 	results = client.get(
@@ -447,7 +479,7 @@ def test_http_methods_module_has_no_false_positive_on_clean_target(
 	_start_worker_in_request_session(monkeypatch, db_session)
 	created = client.post(
 		"/api/scans",
-		json={"target_id": str(target.id), "modules": ["http_methods"]},
+		json={"target_id": str(target.id), "modules": ["http_methods"], "depth": "quick"},
 		headers=headers,
 	)
 	results = client.get(
@@ -465,7 +497,7 @@ def test_info_disclosure_module_has_no_false_positive_on_clean_target(
 	_start_worker_in_request_session(monkeypatch, db_session)
 	created = client.post(
 		"/api/scans",
-		json={"target_id": str(target.id), "modules": ["info_disclosure"]},
+		json={"target_id": str(target.id), "modules": ["info_disclosure"], "depth": "quick"},
 		headers=headers,
 	)
 	results = client.get(

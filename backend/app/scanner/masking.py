@@ -30,6 +30,8 @@ PATTERNS = [
         ),
         rf"\g<1>{REDACTED}",
     ),
+    # Environment/configuration assignments commonly appear in exposed-file evidence.
+    (re.compile(r"(^[A-Z][A-Z0-9_]*=)[^\r\n]+", re.MULTILINE), rf"\g<1>{REDACTED}"),
 ]
 
 

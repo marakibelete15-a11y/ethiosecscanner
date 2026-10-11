@@ -12,7 +12,8 @@ import threading
 import time
 import pytest
 from contextlib import contextmanager
-from fastapi import FastAPI, Response
+from fastapi import FastAPI
+from fastapi.responses import HTMLResponse, Response
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import sessionmaker
 
@@ -142,7 +143,23 @@ def clean_target_url(monkeypatch):
 
     @clean_app.get("/")
     def clean_home():
-        return {"status": "ok"}
+        return HTMLResponse(
+            '<html><body><a href="/safe-search?q=demo">Search</a>'
+            '<a href="/safe-product?id=1">Product</a>'
+            '<form action="/safe-search" method="get"><input name="q"></form>'
+            '<form action="/post-form" method="post"><input name="value"></form>'
+            "</body></html>"
+        )
+
+    @clean_app.get("/safe-search", response_class=HTMLResponse)
+    def clean_search(q: str = ""):
+        from html import escape
+
+        return f"<html><body>{escape(q, quote=True)}</body></html>"
+
+    @clean_app.get("/safe-product")
+    def clean_product(item_id: str = "1"):
+        return f"Product {item_id}"
 
     @clean_app.options("/")
     def clean_options():

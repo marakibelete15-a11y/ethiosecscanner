@@ -62,6 +62,22 @@ Scoring and masking unit tests pass. Masking covers all Authorization header sch
 - The earlier 94.47s run was not profiled, so its exact extra time cannot be apportioned. Current durations identify repeated auth setup and multi-user database tests as the slowest measured cases; the test-only delay removal keeps production politeness intact and brings this profiled full run below 48s.
 - `git diff --check` passed; no editor diagnostics in changed Python files.
 
+## Step 3D-3: Exposed Files, SQLi, XSS, and Crawler
+
+- Upgraded the crawler to collect same-origin HTML links and form action/method/input names, enforce depth limits, skip non-HTML bodies, and avoid auto-following redirects. Redirect destinations and form actions are restricted to the original scheme/host/port.
+- Quick depth crawls only the home page; exposed-files checks only `/.well-known/security.txt`; SQLi and XSS are recorded `done` with zero checks and no probes.
+- Added 25 sensitive-file checks plus a well-known path. Findings require HTTP 200 plus path-specific content signatures, and evidence stores only a short centrally masked sample.
+- Added GET-only SQLi checks with a single-quote response comparison and harmless true/false pair; no extraction, mutation, brute force, or time-based payloads. POST forms are recorded as not tested and never submitted. Standard/deep limits are capped by probe rounds.
+- Added XSS checks using a unique harmless marker containing quote/angle characters; only exact unencoded reflection in HTML is reported.
+- New scans default to all nine built modules. `access_control` and `auth_checks` remain recognized but unimplemented and return 400.
+- Demo target now contains clearly fake `.env`/`.git/HEAD`, inert fake SQL error behavior, vulnerable/safe product and search endpoints, GET/POST forms, and a 200 soft-404 fallback.
+- Added local integration and unit coverage for every new module, clean targets, quick-depth behavior, no POST submission, off-origin redirect prevention, soft-404 filtering, masked evidence, all-nine totals, and Critical verdict priority.
+- Full command: `venv/bin/pytest backend/tests/ -v --durations=20`
+- Result: **80 passed, 5 warnings in 51.84s**, within the one-minute target. The five warnings remain deprecations for Starlette TestClient/httpx and `HTTP_422_UNPROCESSABLE_ENTITY`.
+- Slowest measured tests: two-user target flows 2.76–2.89s; two-user scan isolation 2.43s; all-nine standard scan 2.25s. No public internet calls occur; scanner requests in integration tests target loopback, and SSRF transport tests mock outbound/DNS behavior.
+- Tests disable the polite inter-request delay through an autouse fixture; production delay behavior remains unchanged.
+- `git diff --check` and editor diagnostics pass; no database/model files were changed.
+
 ## Next
 
-Await the next requested module list. Do not infer unprovided SRS requirements.
+Await the next explicitly requested step. Do not infer unprovided SRS requirements.
