@@ -2,7 +2,8 @@
 
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -19,10 +20,14 @@ from app.schemas.scan import (
 	ScanCancelResponse,
 	ScanCreateRequest,
 	ScanCreateResponse,
+	ScanDeleteResponse,
+	ScanDetailResponse,
+	ScanListResponse,
 	ScanResultsResponse,
 	ScanStatusResponse,
+	ScanSummary,
 )
-from app.utils.vocabulary import SCANNER_MODULE_KEYS
+from app.utils.vocabulary import SCAN_STATUS_VALUES, SEVERITY_VALUES, SCANNER_MODULE_KEYS
 
 router = APIRouter(prefix="/api/scans", tags=["Scans"])
 
@@ -39,6 +44,103 @@ def _get_user_scan(scan_id: uuid.UUID, user_id: uuid.UUID, db: Session) -> Scan:
 			detail={"code": "SCAN_NOT_FOUND", "message": "Scan not found."},
 		)
 	return scan
+
+
+def _finding_counts_by_scan(scan_ids: list[uuid.UUID], db: Session) -> dict[uuid.UUID, dict[str, int]]:
+	counts = {
+		scan_id: {severity: 0 for severity in SEVERITY_VALUES}
+		for scan_id in scan_ids
+	}
+	if not scan_ids:
+		return counts
+	rows = (
+		db.query(Finding.scan_id, Finding.severity, func.count(Finding.id))
+		.filter(Finding.scan_id.in_(scan_ids))
+		.group_by(Finding.scan_id, Finding.severity)
+		.all()
+	)
+	for scan_id, severity, count in rows:
+		if severity in counts[scan_id]:
+			counts[scan_id][severity] = count
+	return counts
+
+
+def _scan_summary(scan: Scan, finding_counts: dict[str, int]) -> ScanSummary:
+	return ScanSummary(
+		id=scan.id,
+		target_url=scan.target_url,
+		status=scan.status,
+		depth=scan.depth,
+		progress=scan.progress,
+		security_score=scan.security_score,
+		started_at=scan.started_at,
+		finished_at=scan.finished_at,
+		finding_counts=finding_counts,
+	)
+
+
+@router.get("", response_model=ScanListResponse)
+def list_scans(
+	status_filter: str | None = Query(default=None, alias="status"),
+	target_id: uuid.UUID | None = None,
+	page: int = Query(default=1, ge=1),
+	page_size: int = Query(default=20, ge=1, le=100),
+	db: Session = Depends(get_db),
+	current_user: User = Depends(get_current_user),
+):
+	if status_filter is not None and status_filter not in SCAN_STATUS_VALUES:
+		raise HTTPException(
+			status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+			detail={
+				"code": "INVALID_SCAN_STATUS",
+				"message": f"status must be one of: {', '.join(SCAN_STATUS_VALUES)}",
+			},
+		)
+	query = db.query(Scan).filter(Scan.user_id == current_user.id)
+	if status_filter is not None:
+		query = query.filter(Scan.status == status_filter)
+	if target_id is not None:
+		query = query.filter(Scan.target_id == target_id)
+	total = query.count()
+	scans = (
+		query.order_by(Scan.created_at.desc(), Scan.id.desc())
+		.offset((page - 1) * page_size)
+		.limit(page_size)
+		.all()
+	)
+	counts = _finding_counts_by_scan([scan.id for scan in scans], db)
+	return ScanListResponse(
+		total=total,
+		page=page,
+		page_size=page_size,
+		scans=[_scan_summary(scan, counts[scan.id]) for scan in scans],
+	)
+
+
+@router.get("/{scan_id}", response_model=ScanDetailResponse)
+def get_scan_details(
+	scan_id: uuid.UUID,
+	db: Session = Depends(get_db),
+	current_user: User = Depends(get_current_user),
+):
+	return _get_user_scan(scan_id, current_user.id, db)
+
+
+@router.delete("/{scan_id}", response_model=ScanDeleteResponse)
+def delete_scan(
+	scan_id: uuid.UUID,
+	db: Session = Depends(get_db),
+	current_user: User = Depends(get_current_user),
+):
+	scan = _get_user_scan(scan_id, current_user.id, db)
+	if scan.status in ("queued", "running"):
+		raise HTTPException(
+			status_code=status.HTTP_409_CONFLICT,
+			detail={"code": "SCAN_ACTIVE", "message": "Cancel the scan before deleting it."},
+		)
+	db.delete(scan)
+	db.commit()
+	return ScanDeleteResponse(id=scan_id, message="Scan and associated data deleted successfully.")
 
 
 @router.post("", response_model=ScanCreateResponse, status_code=status.HTTP_201_CREATED)

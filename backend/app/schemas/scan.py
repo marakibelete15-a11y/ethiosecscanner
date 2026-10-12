@@ -44,6 +44,50 @@ class ScanStatusResponse(BaseModel):
 	model_config = ConfigDict(from_attributes=True)
 
 
+class ScanSummary(BaseModel):
+	id: uuid.UUID
+	target_url: str
+	status: str
+	depth: str
+	progress: int
+	security_score: Optional[int]
+	started_at: Optional[datetime.datetime]
+	finished_at: Optional[datetime.datetime]
+	finding_counts: Dict[str, int]
+
+
+class ScanListResponse(BaseModel):
+	total: int
+	page: int
+	page_size: int
+	scans: List[ScanSummary]
+
+
+class ScanDetailResponse(BaseModel):
+	id: uuid.UUID
+	target_id: uuid.UUID
+	target_url: str
+	status: str
+	depth: str
+	progress: int
+	current_module: Optional[str]
+	security_score: Optional[int]
+	selected_modules: List[str]
+	module_progress: Dict[str, Dict[str, Any]]
+	error_message: Optional[str]
+	created_at: datetime.datetime
+	updated_at: datetime.datetime
+	started_at: Optional[datetime.datetime]
+	finished_at: Optional[datetime.datetime]
+
+	model_config = ConfigDict(from_attributes=True)
+
+
+class ScanDeleteResponse(BaseModel):
+	id: uuid.UUID
+	message: str
+
+
 class FindingResult(BaseModel):
 	id: uuid.UUID
 	scan_id: uuid.UUID

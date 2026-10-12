@@ -94,6 +94,19 @@ Scoring and masking unit tests pass. Masking covers all Authorization header sch
 - `git diff --check` and Pylance checks on changed Python files pass. No package was installed, and no database or model files were changed.
 - SRS was not present; no additional behavior has been inferred from it.
 
+## Step 3E-1: Scan History, Finding Status, and Dashboard
+
+- Added authenticated `GET /api/scans` with user-scoped status/target filters, page/page_size paging (maximum 100), newest-first ordering, total count, and per-severity finding counts. Added full user-scoped scan details at `GET /api/scans/{id}`.
+- Added authenticated `DELETE /api/scans/{id}`. Queued or running scans return 409 with `SCAN_ACTIVE` and instruct the owner to cancel first. Finished scans are deleted through existing ORM cascades, including findings and reports.
+- Added authenticated `PATCH /api/findings/{id}`. The finding is tenant-checked through its scan; only the vocabulary-defined status can be changed. Invalid values and extra fields return the shared 422 error envelope.
+- Finding lifecycle status does not change scan-result counts, score, or verdict: all persisted findings continue to count, including false positives. In particular, setting a Critical finding to `false_positive` does not remove it from the Critical verdict or alter the stored score.
+- Added authenticated `GET /api/dashboard/summary`. Severity distribution is the open findings in each target's newest completed scan; this represents the user's current open queue. Recent scans are the five newest scans of any status. Latest security score is from the newest completed scan across the user's targets.
+- Added offline integration coverage for filters, paging, tenant isolation, active-delete conflict, finding/report deletion cascades, invalid status, Critical verdict stability, dashboards with and without scans, and authentication on every new endpoint.
+- No database/model files were changed and no packages were installed. The SRS was not present; implementation follows only the explicit requirements supplied for this step.
+- Full command: `/usr/bin/time -p venv/bin/pytest backend/tests/ -q`
+- Result: **91 passed, 8 warnings; pytest 31.19s, wall-clock 33.35s**. Warnings are Starlette TestClient/httpx and deprecated 422 status constant notices.
+- `git diff --check` and editor diagnostics pass.
+
 ## Next
 
 Await the next explicitly requested step. Do not infer unprovided SRS requirements.

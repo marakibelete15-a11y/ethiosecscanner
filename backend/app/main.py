@@ -87,11 +87,15 @@ register_error_handlers(app)
 
 # Include API Routers
 from app.routers import auth as auth_router
+from app.routers import dashboard as dashboard_router
+from app.routers import findings as findings_router
 from app.routers import scans as scans_router
 from app.routers import targets as targets_router
 
 app.include_router(auth_router.router)
 app.include_router(scans_router.router)
+app.include_router(findings_router.router)
+app.include_router(dashboard_router.router)
 app.include_router(targets_router.router)
 
 
