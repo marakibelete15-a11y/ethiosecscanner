@@ -1,6 +1,7 @@
 """Scan API, worker, and single-module integration tests."""
 
 import uuid
+from collections import Counter
 
 from app.models import Finding, Scan, Target, User
 from app.scanner.http_client import SafeResponse
@@ -204,18 +205,19 @@ def test_cancel_sets_flag_and_worker_finishes_cancelled(client, db_session, monk
 	assert db_session.query(Scan).filter(Scan.id == scan_id).one().status == "cancelled"
 
 
-def test_scan_creation_rejects_known_unbuilt_module(client, db_session, monkeypatch):
-	headers, email = _register_and_login(client, "unbuilt_module")
+def test_scan_creation_accepts_access_control_and_rejects_unknown_module(client, db_session, monkeypatch):
+	headers, email = _register_and_login(client, "built_module")
 	target = _add_verified_target(db_session, email)
 	monkeypatch.setattr("app.routers.scans.validate_target_url", lambda url, **kwargs: url)
+	monkeypatch.setattr("app.routers.scans.start_scan_in_background", lambda _scan_id: None)
 
 	response = client.post(
 		"/api/scans",
 		json={"target_id": str(target.id), "modules": ["access_control"]},
 		headers=headers,
 	)
-	assert response.status_code == 400
-	assert response.json()["error"]["code"] == "MODULE_NOT_IMPLEMENTED"
+	assert response.status_code == 201
+	assert response.json()["selected_modules"] == ["access_control"]
 
 	unknown = client.post(
 		"/api/scans",
@@ -321,10 +323,14 @@ def test_cookies_module_reports_flags_without_storing_cookie_value(
 	assert all("demo-cookie-value" not in (item["evidence"] or "") for item in findings)
 
 
-def test_default_nine_module_scan_counts_and_score(
+def test_default_eleven_module_scan_findings_and_score(
 	client, db_session, demo_target_url, monkeypatch
 ):
-	headers, email = _register_and_login(client, "three_modules")
+	from app.scanner.scoring import calculate_security_score
+	from demo_target import main as demo_main
+
+	demo_main.LOGIN_ATTEMPTS = {"vulnerable": 0, "safe": 0}
+	headers, email = _register_and_login(client, "eleven_modules")
 	target = _add_verified_target(db_session, email, demo_target_url)
 	_start_worker_in_request_session(monkeypatch, db_session)
 
@@ -336,7 +342,7 @@ def test_default_nine_module_scan_counts_and_score(
 	assert created.status_code == 201
 	assert created.json()["selected_modules"] == [
 		"headers", "https", "cookies", "cors", "http_methods", "info_disclosure",
-		"exposed_files", "sqli", "xss",
+		"exposed_files", "sqli", "xss", "access_control", "auth_checks",
 	]
 	status = client.get(
 		f"/api/scans/{created.json()['id']}/status", headers=headers
@@ -354,23 +360,65 @@ def test_default_nine_module_scan_counts_and_score(
 	assert status["module_progress"]["sqli"]["checks_run"] > 0
 	assert status["module_progress"]["xss"]["status"] == "done"
 	assert status["module_progress"]["xss"]["checks_run"] > 0
+	assert status["module_progress"]["access_control"]["checks_run"] == 15
+	assert status["module_progress"]["auth_checks"]["checks_run"] == 6
 	assert all(
 		status["module_progress"][name]["status"] == "done"
-		for name in ("headers", "https", "cookies", "cors", "http_methods", "info_disclosure", "exposed_files", "sqli", "xss")
+		for name in created.json()["selected_modules"]
 	)
 
 	results = client.get(
 		f"/api/scans/{created.json()['id']}/results", headers=headers
 	).json()
-	assert results["counts"] == {
-		"critical": 2,
-		"high": 9,
-		"medium": 13,
-		"low": 19,
-		"info": 0,
-	}, results["counts"]
-	assert results["score"] == 0
+	# These are the deliberately installed demo flaws, not a captured scan output:
+	# five missing browser headers; unavailable HTTPS/plain HTTP; the three unsafe
+	# cookie flags; reflected credentialed CORS; OPTIONS/TRACE; two version banners
+	# and the /error stack trace; fake .env/.git files; the product SQL error and
+	# search reflection; public /admin and /dashboard; and vulnerable login behavior.
+	expected_findings = [
+		("headers", "Missing Content-Security-Policy Header", "medium"),
+		("headers", "Missing Anti-Clickjacking Header (X-Frame-Options)", "medium"),
+		("headers", "Missing X-Content-Type-Options Header", "low"),
+		("headers", "Missing Referrer-Policy Header", "low"),
+		("headers", "Missing Permissions-Policy Header", "low"),
+		("https", "HTTPS Is Not Available", "high"),
+		("https", "HTTP Does Not Redirect to HTTPS", "medium"),
+		("cookies", "Cookie Missing Secure Attribute", "medium"),
+		("cookies", "Cookie Missing HttpOnly Attribute", "medium"),
+		("cookies", "Cookie Missing SameSite Attribute", "low"),
+		("cors", "Arbitrary Origin Reflected with Credentials", "high"),
+		("http_methods", "Risky HTTP Methods Advertised", "medium"),
+		("http_methods", "HTTP TRACE Method Is Accepted", "medium"),
+		("info_disclosure", "Server Version Disclosure", "low"),
+		("info_disclosure", "X-Powered-By Version Disclosure", "low"),
+		("info_disclosure", "Verbose Error Disclosure: Error Route", "low"),
+		("exposed_files", "Sensitive File or Endpoint Exposed: /.env", "critical"),
+		("exposed_files", "Sensitive File or Endpoint Exposed: /.git/HEAD", "critical"),
+		("sqli", "Potential SQL Injection Error Disclosure", "high"),
+		("xss", "Unencoded Reflected Input in HTML", "high"),
+		("xss", "Unencoded Reflected Input in HTML", "high"),
+		("access_control", "Unauthenticated Access to Protected Path: /admin", "high"),
+		("access_control", "Unauthenticated Access to Protected Path: /dashboard", "high"),
+		("auth_checks", "Login Form Served over Plain HTTP", "medium"),
+		("auth_checks", "Login Form Served over Plain HTTP", "medium"),
+		("auth_checks", "Login Form Reveals Account Existence", "medium"),
+		("auth_checks", "Login Form Has No Effective Rate Limit", "medium"),
+	]
+	expected_counts = Counter(severity for _module, _title, severity in expected_findings)
+	expected_counts = {
+		severity: expected_counts[severity]
+		for severity in ("critical", "high", "medium", "low", "info")
+	}
+	actual_findings = [(item["module"], item["title"], item["severity"]) for item in results["findings"]]
+	assert Counter(actual_findings) == Counter(expected_findings)
+	assert results["counts"] == expected_counts
+	assert results["score"] == calculate_security_score(expected_counts)
 	assert results["verdict"] == "critical"
+	assert all(
+		status["module_progress"][module]["findings_count"]
+		== sum(item["module"] == module for item in results["findings"])
+		for module in created.json()["selected_modules"]
+	)
 
 
 def test_quick_scan_marks_sqli_and_xss_done_without_probes(

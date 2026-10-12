@@ -1,6 +1,7 @@
 from types import SimpleNamespace
 
 from app.scanner.masking import REDACTED, sanitize_evidence
+from app.scanner.engine import _merge_site_wide_findings
 from app.scanner.modules.cors import run as run_cors_module
 from app.scanner.modules.https import run as run_https_module
 from app.scanner.modules.http_methods import run as run_http_methods_module
@@ -127,3 +128,24 @@ def test_http_methods_module_only_sends_options_and_trace():
 
     assert client.methods == ["OPTIONS", "TRACE"]
     assert len(result["findings"]) == 2
+
+
+def test_site_wide_findings_merge_by_module_and_title_with_page_evidence():
+    findings = [
+        {
+            "module": "headers",
+            "title": "Missing CSP",
+            "affected_url": f"https://example.test/page/{index}",
+            "evidence": "CSP missing",
+        }
+        for index in range(1, 8)
+    ]
+    findings.append({**findings[0], "module": "headers", "title": "Other issue"})
+
+    merged = _merge_site_wide_findings("headers", findings)
+
+    assert len(merged) == 2
+    assert "Pages affected: 7" in merged[0]["evidence"]
+    assert "https://example.test/page/5" in merged[0]["evidence"]
+    assert "https://example.test/page/6" not in merged[0]["evidence"]
+    assert _merge_site_wide_findings("xss", findings) == findings

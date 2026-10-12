@@ -18,8 +18,7 @@ from app.scanner.http_client import SafeHttpClient
 from app.scanner.masking import sanitize_evidence
 from app.scanner.modules import cookies, headers, https
 from app.scanner.modules import cors, http_methods, info_disclosure
-from app.scanner.modules import exposed_files, sqli, xss
-from app.scanner.modules import exposed_files, sqli, xss
+from app.scanner.modules import exposed_files, sqli, xss, access_control, auth_checks
 from app.scanner.scoring import calculate_security_score
 
 logger = logging.getLogger("ethiosec.scanner")
@@ -35,13 +34,50 @@ IMPLEMENTED_MODULES = {
 	"exposed_files": exposed_files.run,
 	"sqli": sqli.run,
 	"xss": xss.run,
-	"exposed_files": exposed_files.run,
-	"sqli": sqli.run,
-	"xss": xss.run,
+	"access_control": access_control.run,
+	"auth_checks": auth_checks.run,
 }
 
 _cancel_lock = threading.Lock()
 _cancel_flags: dict[uuid.UUID, threading.Event] = {}
+SITE_WIDE_MODULES = {
+	"headers",
+	"cookies",
+	"https",
+	"cors",
+	"http_methods",
+	"info_disclosure",
+}
+
+
+def _merge_site_wide_findings(module_name: str, findings: list[dict]) -> list[dict]:
+	"""Merge same-title site-wide findings and retain affected-page evidence."""
+	if module_name not in SITE_WIDE_MODULES:
+		return findings
+
+	merged: dict[tuple[str, str], dict] = {}
+	urls_by_key: dict[tuple[str, str], list[str]] = {}
+	for finding in findings:
+		key = (module_name, str(finding.get("title", "")))
+		if key not in merged:
+			merged[key] = dict(finding)
+			urls_by_key[key] = []
+		url = str(finding.get("affected_url") or "")
+		if url and url not in urls_by_key[key]:
+			urls_by_key[key].append(url)
+
+	for key, finding in merged.items():
+		urls = urls_by_key[key]
+		listed_urls = urls[:5]
+		url_evidence = "\n".join(listed_urls) if listed_urls else "URL unavailable"
+		original_evidence = str(finding.get("evidence") or "")
+		finding["evidence"] = (
+			f"Pages affected: {len(urls)}\nAffected URLs (up to 5):\n{url_evidence}"
+			+ (f"\nObservation: {original_evidence}" if original_evidence else "")
+		)
+		if listed_urls:
+			finding["affected_url"] = listed_urls[0]
+	return list(merged.values())
 
 
 class ModuleExecutionTimeout(TimeoutError):
@@ -200,6 +236,19 @@ def run_scan_worker(scan_id: uuid.UUID, db: Session | None = None) -> None:
 					checks_passed += int(result.get("checks_passed", 0))
 					module_findings.extend(result.get("findings", []))
 					module_notes.extend(result.get("notes", []))
+				elif module_name in {"access_control", "auth_checks"}:
+					result = _run_module_with_timeout(
+						runner,
+						scan.target_url,
+						client,
+						event.is_set,
+						crawl_result=crawl_result,
+						depth=scan.depth,
+					)
+					checks_run += int(result.get("checks_run", 0))
+					checks_passed += int(result.get("checks_passed", 0))
+					module_findings.extend(result.get("findings", []))
+					module_notes.extend(result.get("notes", []))
 				else:
 					for page_url in pages:
 						if event.is_set():
@@ -218,6 +267,7 @@ def run_scan_worker(scan_id: uuid.UUID, db: Session | None = None) -> None:
 				error = str(exc).strip()[:160] or "Module failed."
 				logger.warning("Scan %s module %s failed: %s", scan.id, module_name, error)
 
+			module_findings = _merge_site_wide_findings(module_name, module_findings)
 			for finding_data in module_findings:
 				values = dict(finding_data)
 				values.pop("id", None)

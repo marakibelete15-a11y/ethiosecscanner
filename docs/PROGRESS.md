@@ -80,4 +80,20 @@ Scoring and masking unit tests pass. Masking covers all Authorization header sch
 
 ## Next
 
+## Step 3D-4: Merged Findings, Access Control, and Authentication Checks
+
+- Merged the site-wide modules `headers`, `cookies`, `https`, `cors`, `http_methods`, and `info_disclosure` by module and title before persistence. One row now contains the distinct affected-page total and at most five URLs; exposed-files, SQLi, and XSS findings remain distinct by path/parameter. Severity counts, score, and module finding totals use persisted merged findings.
+- The all-eleven integration test derives expected findings from deliberate demo content: five missing browser headers; HTTPS unavailable and no HTTP-to-HTTPS redirect; three missing cookie flags; permissive credentialed CORS; advertised risky methods and accepted TRACE; two version headers and one fake stack trace; the fake `.env` and `.git/HEAD`; a SQL error on `/product`; reflected input on two distinct search URLs; public `/admin` and `/dashboard`; and two HTTP login forms, one with account enumeration and no throttling. Its counts and score are computed from that explicit inventory rather than a copied scanner result.
+- Implemented unauthenticated access checks for 15 common paths. Only HTTP 200 responses that are not a login page or soft-404 are findings; no second-user/IDOR test is attempted.
+- Implemented password-form-only auth checks. At most two forms per scan and six submissions per form are allowed (named constants); only synthetic `.invalid` email addresses and a generated non-real password are used. Enumeration requires clearly distinct unknown-account versus wrong-password responses; rate limiting is reported only if all six requests are unblocked, undelayed, and not HTTP 429.
+- Deferred the second-user-context access-control check because it needs safely stored test credentials and a schema change. Per instruction, neither credentials nor models/database schema are added.
+- Extended the loopback-only demo with fake public `/admin` and `/dashboard` routes, `/safe-admin` redirect, vulnerable `/login`, and `/safe-login` with identical errors and HTTP 429 on attempt three.
+- Added issue and clean-target coverage for all eleven modules, merge behavior, 15-path access probes, per-form/per-scan login caps, the safe login throttle, and a complete default all-eleven scan. All outbound scanner requests remain on `SafeHttpClient`; evidence is masked immediately before persistence.
+- Full command: `venv/bin/pytest backend/tests/ -v --durations=20`
+- Result: **86 passed, 5 warnings in 36.70s**. Warnings are existing Starlette deprecations: httpx-backed `TestClient` and `HTTP_422_UNPROCESSABLE_ENTITY`.
+- `git diff --check` and Pylance checks on changed Python files pass. No package was installed, and no database or model files were changed.
+- SRS was not present; no additional behavior has been inferred from it.
+
+## Next
+
 Await the next explicitly requested step. Do not infer unprovided SRS requirements.

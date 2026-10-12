@@ -8,8 +8,10 @@ Serves ownership verification proof via:
 
 import os
 from html import escape
-from fastapi import FastAPI
-from fastapi.responses import HTMLResponse, PlainTextResponse, Response
+from urllib.parse import parse_qs
+
+from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse, Response
 from pydantic import BaseModel
 
 app = FastAPI(title="EthioSec Demo Target", version="1.0.0")
@@ -29,6 +31,8 @@ async def expose_deliberate_demo_headers(request, call_next):
 # In-memory token storage (defaults from environment variable DEMO_VERIFY_TOKEN)
 CURRENT_TOKEN = os.environ.get("DEMO_VERIFY_TOKEN", "ethiosec-demo-initial-token-12345")
 POST_FORM_SUBMISSIONS = 0
+LOGIN_ATTEMPTS: dict[str, int] = {"vulnerable": 0, "safe": 0}
+DEMO_ACCOUNT_EMAIL = "ethiosec-demo-account@example.invalid"
 
 
 class TokenPayload(BaseModel):
@@ -62,6 +66,10 @@ def index(response: Response):
         <a href="/.git/HEAD">Fake Git ref</a>
         <a href="/safe-search?q=demo">Safe search</a>
         <a href="/safe-product?id=1">Safe product</a>
+        <a href="/login">Demo login</a>
+        <a href="/safe-login">Safe demo login</a>
+        <a href="/admin">Fake admin area</a>
+        <a href="/dashboard">Fake dashboard</a>
     </nav>
     <form action="/search" method="get"><input name="q" value="demo"></form>
     <form action="/submit" method="post"><input name="comment" value="demo"></form>
@@ -78,6 +86,59 @@ def fake_env():
 @app.get("/.git/HEAD", response_class=PlainTextResponse)
 def fake_git_head():
 	return "ref: refs/heads/demo\n"
+
+
+@app.get("/admin", response_class=HTMLResponse)
+def fake_admin():
+    return "<html><body><h1>Demo admin area</h1><p>Fake unauthenticated content.</p></body></html>"
+
+
+@app.get("/dashboard", response_class=HTMLResponse)
+def fake_dashboard():
+    return "<html><body><h1>Demo dashboard</h1><p>Fake unauthenticated content.</p></body></html>"
+
+
+@app.get("/safe-admin")
+def safe_admin():
+    return RedirectResponse("/safe-login", status_code=302)
+
+
+def _login_form(action: str) -> str:
+    return (
+        '<html><body><h1>Login</h1>'
+        f'<form action="{action}" method="post">'
+        '<input type="email" name="email">'
+        '<input type="password" name="password">'
+        '<button type="submit">Sign in</button></form></body></html>'
+    )
+
+
+@app.get("/login", response_class=HTMLResponse)
+def login_page():
+    return _login_form("/login")
+
+
+@app.post("/login", response_class=PlainTextResponse)
+async def login(request: Request):
+    LOGIN_ATTEMPTS["vulnerable"] += 1
+    fields = parse_qs((await request.body()).decode("utf-8", errors="replace"))
+    email = fields.get("email", [""])[0]
+    if email == DEMO_ACCOUNT_EMAIL:
+        return PlainTextResponse("wrong password", status_code=401)
+    return PlainTextResponse("no such user", status_code=401)
+
+
+@app.get("/safe-login", response_class=HTMLResponse)
+def safe_login_page():
+    return _login_form("/safe-login")
+
+
+@app.post("/safe-login", response_class=PlainTextResponse)
+async def safe_login(request: Request):
+    LOGIN_ATTEMPTS["safe"] += 1
+    if LOGIN_ATTEMPTS["safe"] >= 3:
+        return PlainTextResponse("Too many attempts. Try again later.", status_code=429)
+    return PlainTextResponse("Invalid email or password", status_code=401)
 
 
 @app.get("/product", response_class=PlainTextResponse)

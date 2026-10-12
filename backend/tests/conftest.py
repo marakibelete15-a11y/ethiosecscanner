@@ -141,6 +141,17 @@ def clean_target_url(monkeypatch):
     """Run a benign local app with no risky methods, version banners, or CORS policy."""
     clean_app = FastAPI()
 
+    @clean_app.middleware("http")
+    async def add_clean_security_headers(request, call_next):
+        response = await call_next(request)
+        response.headers["Content-Security-Policy"] = "default-src 'self'"
+        response.headers["Strict-Transport-Security"] = "max-age=31536000"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        response.headers["Permissions-Policy"] = "geolocation=(), camera=()"
+        return response
+
     @clean_app.get("/")
     def clean_home():
         return HTMLResponse(

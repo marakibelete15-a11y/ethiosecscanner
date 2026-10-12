@@ -16,6 +16,7 @@ class CrawlForm:
 	action_url: str
 	method: str
 	input_names: list[str] = field(default_factory=list)
+	input_types: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass
@@ -41,12 +42,17 @@ class _PageParser(HTMLParser):
 				"action": attributes.get("action") or "",
 				"method": (attributes.get("method") or "GET").upper(),
 				"input_names": [],
+				"input_types": {},
 			}
 			self.forms.append(self.current_form)
 		elif tag.lower() in {"input", "textarea", "select"} and self.current_form:
 			name = attributes.get("name")
 			if name:
 				self.current_form["input_names"].append(name)
+				if tag.lower() == "input":
+					self.current_form["input_types"][name] = (
+						attributes.get("type") or "text"
+					).lower()
 
 	def handle_endtag(self, tag: str) -> None:
 		if tag.lower() == "form":
@@ -118,6 +124,7 @@ def crawl_target(
 					action_url=action_url,
 					method=form["method"],
 					input_names=form["input_names"],
+					input_types=form["input_types"],
 				)
 			)
 
