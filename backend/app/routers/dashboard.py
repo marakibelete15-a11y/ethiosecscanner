@@ -57,7 +57,7 @@ def get_dashboard_summary(
 			db.query(Finding.severity, func.count(Finding.id))
 			.filter(
 				Finding.scan_id.in_(latest_target_scan_ids),
-				Finding.status == "open",
+				Finding.status.in_(("open", "confirmed")),
 			)
 			.group_by(Finding.severity)
 			.all()

@@ -107,6 +107,20 @@ Scoring and masking unit tests pass. Masking covers all Authorization header sch
 - Result: **91 passed, 8 warnings; pytest 31.19s, wall-clock 33.35s**. Warnings are Starlette TestClient/httpx and deprecated 422 status constant notices.
 - `git diff --check` and editor diagnostics pass.
 
+## Step 3E-2: Reports, Profile, Password, and Settings
+
+- Added authenticated report create/list/detail endpoints. Reports are generated on demand as structured JSON; format is stored as a label. Repeating a scan/format regenerates the summary and returns 200; new reports return 201. Only completed scans owned by the current user can be reported.
+- Report summaries include scan target/dates/depth/score, shared Critical-first verdict, all severity counts, passed checks summed from `module_progress.checks_passed`, scanner errors, per-module execution data, and total finding count. Detail results sort findings Critical-first. Existing JSONB summary and current finding fields suffice; no columns were invented.
+- Added authenticated profile read/update with only trimmed, non-empty `full_name` (maximum 150 characters); password changes verify the current bcrypt hash, apply registration complexity/72-byte rules, reject reuse, and never return credentials or hashes. Wrong current password returns 400 `INVALID_CURRENT_PASSWORD`.
+- Added authenticated settings read/update for existing scan-depth and three notification preference fields. Preferences are stored only; email delivery is out of scope.
+- Existing access tokens are not revoked when a password changes and remain valid until expiration; documented in `docs/security_controls.md`.
+- Corrected dashboard severity distribution to count `open` and `confirmed` findings from each target's latest completed scan; `false_positive` and `resolved` are excluded. Updated the dashboard test to cover confirmed findings.
+- Added tests for report create/regenerate, completed-scan requirement, passed-count summation, Critical verdict, report tenant isolation, invalid format, profile validation, password-change cases/login, settings validation, and unauthenticated endpoint access.
+- No database/model files were changed and no packages were installed. The SRS remains absent; implementation follows only the supplied rules.
+- Full command: `/usr/bin/time -p venv/bin/pytest backend/tests/ -q`
+- Result: **97 passed, 12 warnings; pytest 56.60s, wall-clock 59.69s**. Warnings are Starlette TestClient/httpx and deprecated 422 status constant notices.
+- `git diff --check` and editor diagnostics pass.
+
 ## Next
 
 Await the next explicitly requested step. Do not infer unprovided SRS requirements.

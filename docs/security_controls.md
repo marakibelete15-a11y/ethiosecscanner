@@ -6,6 +6,7 @@
    - Direct `bcrypt` hashing with salt. Passwords longer than 72 bytes are rejected.
    - JWT secret strictly loaded from environment (`JWT_SECRET_KEY`); application refuses to boot in production without it.
    - Frontend route guards validate tokens against `GET /api/auth/me` on every navigation.
+   - Changing a password does not revoke existing access tokens; tokens remain valid until their configured expiration.
 
 2. **Authorization & Tenant Isolation (SEC-4, SEC-5)**:
    - Every database query filters by the authenticated user's ID (`Depends(get_current_user)`).

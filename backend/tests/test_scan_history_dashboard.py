@@ -220,6 +220,7 @@ def test_dashboard_summary_for_users_with_and_without_scans(client, db_session):
 	_add_finding(db_session, old_scan, target_one, "critical")
 	_add_finding(db_session, latest_one, target_one, "high")
 	_add_finding(db_session, latest_one, target_one, "critical", finding_status="resolved")
+	_add_finding(db_session, latest_one, target_one, "low", finding_status="confirmed")
 	_add_finding(db_session, latest_two, target_two, "medium")
 	_add_finding(db_session, latest_two, target_two, "low", finding_status="false_positive")
 	db_session.commit()
@@ -236,7 +237,7 @@ def test_dashboard_summary_for_users_with_and_without_scans(client, db_session):
 		"critical": 0,
 		"high": 1,
 		"medium": 1,
-		"low": 0,
+		"low": 1,
 		"info": 0,
 	}
 	assert len(data["recent_scans"]) == 4
