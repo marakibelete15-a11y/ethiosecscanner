@@ -671,6 +671,21 @@ body {
     display: none; 
 }
 
+.form-success {
+    margin-bottom: 20px;
+    padding: 12px 14px;
+    border-radius: 10px;
+    background: rgba(27, 179, 105, 0.09);
+    border: 1px solid rgba(27, 179, 105, 0.32);
+    color: #70d6a3;
+    font-size: 12.5px;
+    line-height: 1.5;
+}
+
+.form-success[hidden] {
+    display: none;
+}
+
 /* --- Signup Specific Additions --- */
 /* =====================================================
    SIGNUP PAGE - VOLCANO THEME (signupstyle.css)

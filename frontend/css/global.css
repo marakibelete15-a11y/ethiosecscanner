@@ -236,6 +236,11 @@ body {
     transition: background 0.25s ease, color 0.25s ease, border-color 0.25s ease;
 }
 
+.nav-divider {
+    margin: 15px 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
 .side-icon { 
     width: 18px; 
     text-align: center; 

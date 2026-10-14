@@ -154,6 +154,17 @@ Scoring and masking unit tests pass. Masking covers all Authorization header sch
 - Full result: **110 passed, 12 warnings in 9.14s**. Warnings remain the existing Starlette TestClient/httpx and deprecated 422 status constant notices.
 - No database or model files were changed.
 
+## Phase 4A: Shared Authentication and Protected Dashboard Shell
+
+- Added same-origin API configuration and a single fetch wrapper that attaches the localStorage Bearer token and reads the API `error.code` / `error.message` envelope. Unauthorized and network failures clear all localStorage credentials; login's invalid-credential response remains visible without redirecting.
+- Added shared auth helpers for login, registration, logout, `/api/auth/me` route checks, validated public navigation, and one generated sidebar navigation. The login page validates an existing token with `/api/auth/me` rather than trusting localStorage.
+- Wired registration and login forms with server-mirroring email/password checks, accessible pending status, and API error messages. Registration redirects to sign-in because the register endpoint returns a user record, not an access token.
+- Reduced the dashboard to its authenticated shell and account display. Removed Chart.js: the import report confirms the old dashboard used Canvas 2D directly and never instantiated Chart.js.
+- Added SEC-12 localStorage/XSS documentation, a manual browser checklist, and built-in Node tests for client-side validation. No packages installed.
+- Focused validation: `node --test frontend/tests/auth.test.cjs` passed (2 tests); `node --check` passed for all frontend JS files.
+- Full backend command: `venv/bin/pytest backend/tests/ -q`
+- Result: **110 passed, 12 existing deprecation warnings in 19.38s**. No backend, database, or model files were changed.
+
 ## Next
 
 Await the next explicitly requested step. Do not infer unprovided SRS requirements.

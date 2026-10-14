@@ -17,7 +17,7 @@ The referenced SRS is not present. This map records implemented behavior and kno
 | SEC-9 | [`.gitignore`](../.gitignore) excludes `.env`, keys, local databases, and virtualenvs. Current Git index audit found only `.env.example` among those patterns. | Verified for current index, not a guarantee against future commits. |
 | SEC-10 | Scanner modules use bounded, mostly read-only probes, depth/request ceilings, and pacing; login-form probes use synthetic credentials. | Weak by nature: up to six synthetic submissions per form may still trigger target logging, lockouts, or state changes. Scan only with authorization. |
 | SEC-11 | [masking.py](../backend/app/scanner/masking.py) sanitizes stored evidence and formats masked exception details for logs; [engine.py](../backend/app/scanner/engine.py), [verification_service.py](../backend/app/services/verification_service.py), [main.py](../backend/app/main.py), and [error_handlers.py](../backend/app/core/error_handlers.py) use it for exception logs. | Cookies, Set-Cookie, Authorization, credential fields, URL query strings, and file paths are redacted before logging. Unhandled API errors return a generic 500 envelope. Scanner failures persist fixed messages and categories; raw exception text is log-only and masked. |
-| SEC-12 | No SEC-12 definition is available in the supplied project context. | NOT SPECIFIED; no behavior is attributed without the SRS. |
+| SEC-12 | The vanilla-JavaScript frontend stores its Bearer token in `localStorage` for simple access from the shared API wrapper. Any XSS on the page could read and steal it. Mitigations include rendering untrusted/API text only with `textContent` or DOM nodes, no inline scripts, server-side token validation on every protected API request, and the 24-hour token lifetime. Production should prefer `HttpOnly`, `Secure`, `SameSite` cookies so JavaScript cannot read the credential. | Implemented for the current frontend. `localStorage` remains an XSS-sensitive tradeoff, not equivalent to an HttpOnly cookie. |
 | SEC-13 | Target verification supports DNS TXT, HTML meta tag, or HTTP challenge file in [verification_service.py](../backend/app/services/verification_service.py); scans require verification. | Verification gate implemented. A separate enforced legal-consent workflow cannot be confirmed from the missing SRS. |
 
 ## Known Limitations
@@ -31,7 +31,7 @@ The referenced SRS is not present. This map records implemented behavior and kno
 - The application’s own login API has no rate limit; brute-force throttling is not implemented.
 - Report `pdf` and `html` formats are labels; the API returns structured JSON. PDF export is expected to use the browser print dialog.
 - Notification settings are stored preferences only; email delivery is not implemented.
-- Frontend `auth.js` and `api.js` remain placeholders; no implemented localStorage/sessionStorage token flow was found.
+- The frontend uses localStorage for its Bearer token; any XSS can steal it. The API wrapper validates protected sessions with `/api/auth/me` and clears browser storage on an invalid session or network failure.
 - `ALLOW_LOCAL_TARGETS` permits loopback/private targets outside production for development/tests. Metadata and link-local remain blocked.
 - No production deployment topology, distributed worker controls, or operations monitoring are documented in this build.
 - The SRS is absent; requirements beyond the explicit project instructions remain unverified.
