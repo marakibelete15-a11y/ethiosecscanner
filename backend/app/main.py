@@ -21,6 +21,7 @@ from app.core.error_handlers import register_error_handlers
 from app.core.security import get_jwt_secret
 from app.core.settings import settings
 from app.models import Scan
+from app.scanner.masking import mask_exception_detail
 from app.schemas.common import HealthResponse
 
 logger = logging.getLogger("ethiosec.app")
@@ -69,7 +70,7 @@ async def lifespan(app: FastAPI):
             logger.info("Reset %d orphan running scan(s) to 'failed' on startup.", updated_count)
     except Exception as exc:
         db.rollback()
-        logger.warning("Could not reset orphan scans on startup: %s", exc)
+        logger.warning("Could not reset orphan scans on startup: %s", mask_exception_detail(exc))
     finally:
         db.close()
 

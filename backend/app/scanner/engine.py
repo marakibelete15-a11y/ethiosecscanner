@@ -8,6 +8,7 @@ import uuid
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
 from typing import Callable
 
+import httpx
 from sqlalchemy.orm import Session
 
 from app.core.database import SessionLocal
@@ -15,7 +16,7 @@ from app.core.settings import settings
 from app.models import Finding, Scan
 from app.scanner.crawler import PAGE_LIMITS, CrawlResult, crawl_target
 from app.scanner.http_client import SafeHttpClient
-from app.scanner.masking import sanitize_evidence
+from app.scanner.masking import mask_exception_detail, sanitize_evidence
 from app.scanner.modules import cookies, headers, https
 from app.scanner.modules import cors, http_methods, info_disclosure
 from app.scanner.modules import exposed_files, sqli, xss, access_control, auth_checks
@@ -82,6 +83,16 @@ def _merge_site_wide_findings(module_name: str, findings: list[dict]) -> list[di
 
 class ModuleExecutionTimeout(TimeoutError):
 	"""Raised when a scanner module exceeds its execution limit."""
+
+
+def _failure_details(exc: Exception, *, module_failure: bool = False) -> tuple[str, str]:
+	if isinstance(exc, (TimeoutError, FutureTimeoutError)):
+		return "timeout", "Timed out"
+	if isinstance(exc, (OSError, httpx.RequestError)):
+		return "network_error", "Network error"
+	if module_failure:
+		return "unexpected_error", "Unexpected error in module"
+	return "unexpected_error", "Unexpected scan error"
 
 
 class _PoliteClient:
@@ -219,6 +230,7 @@ def run_scan_worker(scan_id: uuid.UUID, db: Session | None = None) -> None:
 			module_findings = []
 			module_notes = []
 			error = None
+			error_category = None
 			try:
 				runner = IMPLEMENTED_MODULES[module_name]
 				if module_name in {"sqli", "xss"} and scan.depth == "quick":
@@ -264,8 +276,14 @@ def run_scan_worker(scan_id: uuid.UUID, db: Session | None = None) -> None:
 						module_findings.extend(result.get("findings", []))
 						module_notes.extend(result.get("notes", []))
 			except Exception as exc:
-				error = str(exc).strip()[:160] or "Module failed."
-				logger.warning("Scan %s module %s failed: %s", scan.id, module_name, error)
+				error_category, error = _failure_details(exc, module_failure=True)
+				logger.error(
+					"Scan %s module %s failed (%s): %s",
+					scan.id,
+					module_name,
+					error_category,
+					mask_exception_detail(exc),
+				)
 
 			module_findings = _merge_site_wide_findings(module_name, module_findings)
 			for finding_data in module_findings:
@@ -286,6 +304,7 @@ def run_scan_worker(scan_id: uuid.UUID, db: Session | None = None) -> None:
 					"findings_count": len(module_findings),
 					"status": "error" if error else "done",
 					"error": error,
+					"error_category": error_category,
 					"notes": module_notes,
 				},
 			)
@@ -298,10 +317,18 @@ def run_scan_worker(scan_id: uuid.UUID, db: Session | None = None) -> None:
 		scan = db.query(Scan).filter(Scan.id == scan_id).first()
 		if scan is not None:
 			scan.status = "failed"
-			scan.error_message = str(exc).strip()[:200] or "Scan failed."
+			error_category, error_message = _failure_details(exc)
+			scan.error_message = f"{error_message} [{error_category}]"
 			scan.finished_at = datetime.datetime.now(datetime.timezone.utc)
 			db.commit()
-		logger.exception("Scan %s failed outside a module", scan_id)
+		else:
+			error_category, _ = _failure_details(exc)
+		logger.error(
+			"Scan %s failed outside a module (%s): %s",
+			scan_id,
+			error_category,
+			mask_exception_detail(exc),
+		)
 	finally:
 		if owns_session:
 			db.close()

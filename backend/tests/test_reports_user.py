@@ -245,6 +245,31 @@ def test_settings_update_and_validation(client, db_session):
 	assert db_session.query(UserSettings).filter(UserSettings.user_id == user.id).one().default_scan_depth == "deep"
 
 
+def test_settings_are_scoped_to_authenticated_user(client):
+	owner_headers, _ = _register_and_login(client, "settings_owner")
+	other_headers, _ = _register_and_login(client, "settings_other")
+	owner_values = {
+		"default_scan_depth": "deep",
+		"notify_scan_completed": False,
+		"notify_scan_failed": True,
+		"notify_critical_finding": False,
+	}
+	assert client.put("/api/user/settings", json=owner_values, headers=owner_headers).status_code == 200
+
+	other_settings = client.get("/api/user/settings", headers=other_headers)
+	assert other_settings.status_code == 200
+	assert other_settings.json()["default_scan_depth"] == "standard"
+	assert other_settings.json()["notify_scan_completed"] is True
+	other_values = {
+		"default_scan_depth": "quick",
+		"notify_scan_completed": False,
+		"notify_scan_failed": False,
+		"notify_critical_finding": True,
+	}
+	assert client.put("/api/user/settings", json=other_values, headers=other_headers).status_code == 200
+	assert client.get("/api/user/settings", headers=owner_headers).json() == owner_values
+
+
 def test_all_step_endpoints_require_authentication(client):
 	report_id = uuid.uuid4()
 	scan_id = uuid.uuid4()

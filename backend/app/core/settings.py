@@ -38,6 +38,7 @@ class Settings(BaseSettings):
         env_file=str(ENV_FILE_PATH) if ENV_FILE_PATH.exists() else ".env",
         env_file_encoding="utf-8",
         extra="ignore",
+        hide_input_in_errors=True,
     )
 
     @field_validator("JWT_SECRET_KEY")
@@ -53,6 +54,13 @@ class Settings(BaseSettings):
                 "JWT_SECRET_KEY must be at least 32 characters and contain at least 16 distinct characters."
             )
         return v
+
+    @field_validator("CORS_ORIGINS")
+    @classmethod
+    def reject_wildcard_cors_origin(cls, value: str) -> str:
+        if "*" in value:
+            raise ValueError("CORS_ORIGINS must not contain wildcard origins.")
+        return value
 
     @model_validator(mode="after")
     def validate_production_settings(self):

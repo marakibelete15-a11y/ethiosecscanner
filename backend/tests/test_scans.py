@@ -94,9 +94,11 @@ def test_scan_demo_target_finds_missing_security_headers(client, db_session, mon
 	assert all(item["target_id"] == str(target.id) for item in results["findings"])
 
 
-def test_failing_module_is_isolated_and_reported(client, db_session, monkeypatch):
+def test_failing_module_is_isolated_and_reported(client, db_session, monkeypatch, caplog):
 	headers, email = _register_and_login(client, "module_error")
 	target = _add_verified_target(db_session, email)
+	fake_secret = "FAKE_MODULE_TOKEN_456"
+	fake_path = "/tmp/private_module_failure.py"
 	monkeypatch.setattr("app.routers.scans.validate_target_url", lambda url, **kwargs: url)
 	monkeypatch.setattr(
 		"app.scanner.engine.SafeHttpClient",
@@ -113,10 +115,12 @@ def test_failing_module_is_isolated_and_reported(client, db_session, monkeypatch
 	from app.scanner import engine
 
 	original_modules = dict(engine.IMPLEMENTED_MODULES)
-	engine.IMPLEMENTED_MODULES["https"] = lambda *args, **kwargs: (_ for _ in ()).throw(
-		RuntimeError("isolated module failure")
-	)
+	def failing_module(*args, **kwargs):
+		raise RuntimeError(f"token={fake_secret}; file path={fake_path}")
+
+	engine.IMPLEMENTED_MODULES["https"] = failing_module
 	try:
+		caplog.set_level("ERROR", logger="ethiosec.scanner")
 		_start_worker_in_request_session(monkeypatch, db_session)
 		response = client.post(
 			"/api/scans",
@@ -129,11 +133,72 @@ def test_failing_module_is_isolated_and_reported(client, db_session, monkeypatch
 		).json()
 		assert progress["status"] == "completed"
 		assert progress["module_progress"]["https"]["status"] == "error"
-		assert "isolated module failure" in progress["module_progress"]["https"]["error"]
+		assert progress["module_progress"]["https"]["error"] == "Unexpected error in module"
+		assert progress["module_progress"]["https"]["error_category"] == "unexpected_error"
 		assert progress["module_progress"]["cookies"]["status"] == "done"
+		results = client.get(
+			f"/api/scans/{response.json()['id']}/results", headers=headers
+		)
+		assert results.status_code == 200
+		assert results.json()["scanner_error_count"] == 1
+		assert fake_secret not in repr(progress)
+		assert fake_path not in repr(progress)
+		assert fake_secret not in results.text
+		assert fake_path not in results.text
+		assert fake_secret not in caplog.text
+		assert fake_path not in caplog.text
 	finally:
 		engine.IMPLEMENTED_MODULES.clear()
 		engine.IMPLEMENTED_MODULES.update(original_modules)
+
+
+def test_scan_worker_failure_stores_fixed_error_and_logs_masked_detail(
+	client, db_session, monkeypatch, caplog
+):
+	headers, email = _register_and_login(client, "worker_error")
+	target = _add_verified_target(db_session, email)
+	fake_secret = "FAKE_WORKER_TOKEN_789"
+	fake_path = "/tmp/private_scan_worker.py"
+
+	def fail_crawl(*args, **kwargs):
+		raise RuntimeError(f"token={fake_secret}; file path={fake_path}")
+
+	monkeypatch.setattr("app.routers.scans.validate_target_url", lambda url, **kwargs: url)
+	monkeypatch.setattr("app.scanner.engine.crawl_target", fail_crawl)
+	caplog.set_level("ERROR", logger="ethiosec.scanner")
+
+	class WorkerSession:
+		def __getattr__(self, name):
+			return getattr(db_session, name)
+
+		def rollback(self):
+			pass
+
+	def run_synchronously(scan_id):
+		from app.scanner.engine import run_scan_worker
+
+		run_scan_worker(scan_id, db=WorkerSession())
+
+	monkeypatch.setattr("app.routers.scans.start_scan_in_background", run_synchronously)
+
+	created = client.post(
+		"/api/scans",
+		json={"target_id": str(target.id), "modules": ["headers"]},
+		headers=headers,
+	)
+	assert created.status_code == 201
+	scan_id = created.json()["id"]
+	status = client.get(f"/api/scans/{scan_id}/status", headers=headers)
+	results = client.get(f"/api/scans/{scan_id}/results", headers=headers)
+
+	assert status.status_code == 200
+	assert status.json()["status"] == "failed"
+	assert status.json()["error_message"] == "Unexpected scan error [unexpected_error]"
+	assert results.status_code == 200
+	assert fake_secret not in status.text + results.text
+	assert fake_path not in status.text + results.text
+	assert fake_secret not in caplog.text
+	assert fake_path not in caplog.text
 
 
 def test_unverified_target_is_refused_with_specific_error(client, db_session):

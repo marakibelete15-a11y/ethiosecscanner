@@ -134,6 +134,26 @@ Scoring and masking unit tests pass. Masking covers all Authorization header sch
 - Result: **102 passed, 12 warnings; pytest 16.22s, wall-clock 19.73s**. Warnings are Starlette TestClient/httpx and deprecated 422 status constant notices.
 - `venv/bin/pip check`, `git diff --check`, and editor diagnostics pass.
 
+## Step 3F Follow-Up: Settings Error Redaction
+
+- Enabled Pydantic `hide_input_in_errors` for application Settings so rendered validation messages omit invalid input values, including JWT secrets.
+- Added a regression test that constructs Settings with a deliberately invalid JWT secret and asserts the secret is absent from the validation message.
+- Focused check: `venv/bin/pytest backend/tests/test_auth.py::test_settings_validation_error_does_not_expose_jwt_secret -q` passed.
+- Full command: `venv/bin/pytest backend/tests/ -q`
+- Result: **103 passed, 12 warnings in 8.63s**. Warnings are the existing Starlette TestClient/httpx and deprecated 422 status constant notices.
+- No database or model files were changed.
+
+## Step 3F Follow-Up: Error Hygiene, CORS, and Regression Tests
+
+- Exception-bearing logs now use the existing evidence masker plus redaction for arbitrary URL query strings and filesystem paths. The exception detail is formatted before logging rather than emitted through raw `logger.exception` traceback handling.
+- Scanner module and worker failures persist fixed messages with error categories; exception detail is not returned in status/results. The catch-all continues to return the generic shared 500 envelope.
+- `CORS_ORIGINS` rejects wildcard `*` in every environment.
+- Added tests for sanitized module/worker failures and logs, generic unhandled 500 responses, wildcard CORS, per-user settings, lifespan restart recovery, and loopback/private/link-local/metadata policy.
+- Added a direct exception-masker test for cookies, Set-Cookie, Authorization, passwords, tokens, URL query strings, and paths.
+- Focused regression checks pass. Full command: `venv/bin/pytest backend/tests/ -q`.
+- Full result: **110 passed, 12 warnings in 9.14s**. Warnings remain the existing Starlette TestClient/httpx and deprecated 422 status constant notices.
+- No database or model files were changed.
+
 ## Next
 
 Await the next explicitly requested step. Do not infer unprovided SRS requirements.

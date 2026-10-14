@@ -17,6 +17,7 @@ import dns.resolver
 from app.core.settings import settings
 from app.models.target import Target
 from app.scanner.http_client import SafeHttpClient, safe_get
+from app.scanner.masking import mask_exception_detail
 from app.scanner.safety import SSRFError
 
 logger = logging.getLogger("ethiosec.verification")
@@ -172,6 +173,6 @@ def verify_target_ownership(
     except SSRFError as ssrf_exc:
         return False, f"Verification blocked by security policy: {ssrf_exc}"
     except Exception as exc:
-        logger.exception("Unexpected error during target verification: %s", exc)
-        return False, f"Verification failed due to an unexpected error: {exc}"
+        logger.error("Unexpected error during target verification: %s", mask_exception_detail(exc))
+        return False, "Verification failed due to an unexpected error."
 

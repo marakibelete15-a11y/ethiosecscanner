@@ -12,6 +12,8 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from app.scanner.masking import mask_exception_detail
+
 logger = logging.getLogger("ethiosec.errors")
 
 
@@ -60,7 +62,7 @@ def register_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(Exception)
     async def generic_exception_handler(request: Request, exc: Exception) -> JSONResponse:
         """Catch-all for unhandled server exceptions."""
-        logger.exception("Unhandled server exception: %s", exc)
+        logger.error("Unhandled server exception: %s", mask_exception_detail(exc))
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             content={

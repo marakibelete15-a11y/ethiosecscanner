@@ -1,6 +1,6 @@
 from types import SimpleNamespace
 
-from app.scanner.masking import REDACTED, sanitize_evidence
+from app.scanner.masking import REDACTED, mask_exception_detail, sanitize_evidence
 from app.scanner.engine import _merge_site_wide_findings
 from app.scanner.modules.cors import run as run_cors_module
 from app.scanner.modules.https import run as run_https_module
@@ -51,6 +51,28 @@ def test_sanitize_evidence_masks_credentials_and_cookie_values():
     ):
         assert secret not in sanitized
     assert sanitized.count(REDACTED) >= 6
+
+
+def test_exception_log_masker_redacts_credentials_queries_and_paths():
+    exc = RuntimeError(
+        "Cookie: session=cookie-secret; Set-Cookie: sid=set-cookie-secret; "
+        "Authorization: Bearer auth-secret; password=password-secret; token=token-secret; "
+        "URL=https://example.test/account?arbitrary=query-secret; "
+        "file path=/tmp/private_exception.py"
+    )
+
+    masked = mask_exception_detail(exc)
+
+    for secret in (
+        "cookie-secret",
+        "set-cookie-secret",
+        "auth-secret",
+        "password-secret",
+        "token-secret",
+        "query-secret",
+        "/tmp/private_exception.py",
+    ):
+        assert secret not in masked
 
 
 def test_sanitize_evidence_shortens_long_evidence():

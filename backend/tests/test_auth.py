@@ -14,6 +14,7 @@ Tests for:
 
 import uuid
 import pytest
+from pydantic import ValidationError
 from fastapi.testclient import TestClient
 from app.core.security import get_jwt_secret, hash_password
 from app.core.settings import Settings, settings
@@ -264,6 +265,26 @@ def test_jwt_secret_enforced_in_any_environment(monkeypatch):
 def test_weak_low_diversity_jwt_secret_rejected():
     with pytest.raises(ValueError, match="16 distinct characters"):
         Settings(JWT_SECRET_KEY="a" * 64)
+
+
+def test_settings_validation_error_does_not_expose_jwt_secret():
+    secret = "JWT_SECRET_DO_NOT_PRINT_123"
+
+    with pytest.raises(ValidationError) as exc_info:
+        Settings(_env_file=None, JWT_SECRET_KEY=secret)
+
+    assert secret not in str(exc_info.value)
+
+
+@pytest.mark.parametrize("environment", ["development", "production"])
+def test_settings_reject_wildcard_cors_origin(environment):
+    with pytest.raises(ValueError, match="must not contain wildcard origins"):
+        Settings(
+            _env_file=None,
+            ENVIRONMENT=environment,
+            JWT_SECRET_KEY="a-test-secret-with-enough-diverse-characters-123456",
+            CORS_ORIGINS="https://ui.example, *",
+        )
 
 
 def test_production_rejects_local_target_override():

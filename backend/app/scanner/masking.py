@@ -8,6 +8,7 @@ Enforces:
 """
 
 import re
+import traceback
 from typing import Optional
 
 MAX_EVIDENCE_LENGTH = 1000
@@ -34,6 +35,14 @@ PATTERNS = [
     (re.compile(r"(^[A-Z][A-Z0-9_]*=)[^\r\n]+", re.MULTILINE), rf"\g<1>{REDACTED}"),
 ]
 
+_LOG_URL_QUERY_PATTERN = re.compile(r"(https?://[^\s?#]+)\?[^\s#]+", re.IGNORECASE)
+_LOG_CONTEXT_PATH_PATTERN = re.compile(
+    r"(?i)(\b(?:file(?:\s+path)?|path)\s*(?:=|:)?\s*[\"']?)/[^\s\"']+"
+)
+_LOG_ABSOLUTE_FILE_PATTERN = re.compile(
+    r"(?<![A-Za-z0-9:/])/(?:[A-Za-z0-9_.-]+/)*[A-Za-z0-9_.-]+\.[A-Za-z0-9]+(?=$|[\s,;)'\"`])"
+)
+
 
 def mask_evidence(evidence: Optional[str]) -> Optional[str]:
     """
@@ -47,6 +56,15 @@ def mask_evidence(evidence: Optional[str]) -> Optional[str]:
         text = pattern.sub(replacement, text)
 
     return text
+
+
+def mask_exception_detail(exc: BaseException) -> str:
+    """Format full exception context for logs while removing secrets and paths."""
+    detail = "".join(traceback.format_exception(exc))
+    masked = mask_evidence(detail) or ""
+    masked = _LOG_URL_QUERY_PATTERN.sub(r"\1?[REDACTED]", masked)
+    masked = _LOG_CONTEXT_PATH_PATTERN.sub(r"\1[PATH]", masked)
+    return _LOG_ABSOLUTE_FILE_PATTERN.sub("[PATH]", masked)
 
 
 def shorten_evidence(evidence: Optional[str], max_length: int = MAX_EVIDENCE_LENGTH) -> Optional[str]:

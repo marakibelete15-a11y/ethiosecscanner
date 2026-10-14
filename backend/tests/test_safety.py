@@ -71,6 +71,17 @@ def test_rfc1918_private_ranges_blocked_when_flag_off():
         assert blocked_on is False, f"Expected {ip_str} to be permitted with allow_local=True"
 
 
+def test_link_local_stays_blocked_and_local_override_excludes_metadata():
+    with pytest.raises(SSRFError, match="Link-local"):
+        validate_target_url("http://169.254.10.20", allow_local=True)
+
+    validate_target_url("http://127.0.0.1", allow_local=True)
+    validate_target_url("http://192.168.1.10", allow_local=True)
+
+    with pytest.raises(SSRFError, match="cloud metadata"):
+        validate_target_url("http://169.254.169.254", allow_local=True)
+
+
 def test_hostname_resolving_to_private_ip_blocked():
     """A hostname that resolves to a private IP is blocked under SSRF policies."""
     mock_addrinfo = [
