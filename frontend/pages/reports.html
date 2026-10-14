@@ -1,1 +1,111 @@
-<!-- Report View & Export Page placeholder -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    
+
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reports - EthioSecScan</title>
+  <link rel="stylesheet" href="../css/global.css">
+  <link rel="stylesheet" href="../css/reports.css">
+  <style>
+    /* Print styling for clean offline PDF exports */
+    @media print {
+      body { background: #ffffff !important; color: #000000 !important; }
+      .sidebar, .sidebar-toggle, .sidebar-overlay, .dashboard-bg, .report-list-panel, .doc-actions, .toast { display: none !important; }
+      .layout { display: block !important; }
+      .page-container { margin: 0 !important; padding: 0 !important; max-width: 100% !important; }
+      .reports-grid { display: block !important; }
+      .report-doc { border: none !important; background: transparent !important; box-shadow: none !important; padding: 0 !important; color: #000000 !important; }
+      .report-doc * { color: #000000 !important; }
+      .score-strip .score-tile { border: 1px solid #ccc !important; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Background -->
+  <div class="dashboard-bg">
+    <div class="glow-one"></div>
+    <div class="glow-two"></div>
+  </div>
+
+  <button class="sidebar-toggle" id="sidebarToggle" data-action="toggle-sidebar" aria-label="Open menu">☰</button>
+  <div class="sidebar-overlay" id="sidebarOverlay" data-action="close-sidebar"></div>
+
+  <div class="layout">
+
+    <!-- ============ SIDEBAR ============ -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-logo">
+        <div class="logo-icon">🛡️</div>
+        <span class="logo-text">EthioSecScan</span>
+      </div>
+                        <nav class="sidebar-nav">
+        <a href="dashboard.html" class="side-link"><span class="side-icon">📊</span> Dashboard</a>
+        <a href="new_scan.html" class="side-link"><span class="side-icon">⚡</span> New Scan</a>
+        <a href="history.html" class="side-link"><span class="side-icon">🕒</span> History</a>
+        <a href="results.html" class="side-link"><span class="side-icon">📈</span> Results</a>
+        <a href="reports.html" class="side-link active"><span class="side-icon">📄</span> Reports</a>
+        <a href="ai_assistant.html" class="side-link"><span class="side-icon">🤖</span> AI Assistant</a>
+        <div class="nav-divider" style="margin: 15px 0; border-top: 1px solid rgba(255,255,255,0.1);"></div>
+        <a href="settings.html" class="side-link"><span class="side-icon">⚙️</span> Settings</a>
+        <a href="#" class="side-link" data-action="logout"><span class="side-icon">🚪</span> Logout</a>
+      </nav>
+      
+      
+      
+      
+      
+      
+      <div class="scanner-status">
+        <div class="status-dot"></div>
+        <span>Reports Engine Ready</span>
+      </div>
+    </aside>
+
+    <!-- ============ MAIN CONTENT ============ -->
+    <main class="page-container">
+
+      <div class="page-header">
+        <div class="header-content">
+          <h1>Reports</h1>
+          <p>Formal, shareable version of every completed scan</p>
+        </div>
+        <a href="new_scan.html" class="primary-btn">🔍 New scan</a>
+      </div>
+
+      <div class="reports-grid">
+
+        <!-- ---------- list ---------- -->
+        <section class="panel report-list-panel">
+          <div class="card-header">
+            <h2>Past reports</h2>
+            <span class="header-hint" id="reportCount">—<!-- DATA: count filled by reports.js --></span>
+          </div>
+          <div class="report-list" id="reportList"><!-- DATA: reports list filled by reports.js -->
+            <p class="loading-state">Loading reports…</p>
+          </div>
+        </section>
+
+        <!-- ---------- document ---------- -->
+        <section class="panel report-doc" id="reportDoc"><!-- DATA: assessment report doc rendered by reports.js -->
+          <p class="empty-state">Select a report on the left to open it.</p>
+        </section>
+
+      </div>
+
+    </main>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  
+
+  <script src="../js/config.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/reports.js"></script>
+</body>
+</html>
+

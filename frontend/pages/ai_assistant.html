@@ -1,1 +1,96 @@
-<!-- AI Assistant Page placeholder (OUT OF SCOPE FOR CURRENT PHASE) -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    
+
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Assistant - EthioSecScan</title>
+  <link rel="stylesheet" href="../css/global.css">
+  <link rel="stylesheet" href="../css/ai_assistant.css">
+</head>
+<body>
+
+  <div class="dashboard-bg">
+    <div class="glow-one"></div>
+    <div class="glow-two"></div>
+  </div>
+
+  <button class="sidebar-toggle" id="sidebarToggle" data-action="toggle-sidebar" aria-label="Open menu">☰</button>
+  <div class="sidebar-overlay" id="sidebarOverlay" data-action="close-sidebar"></div>
+
+  <div class="layout">
+
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <h2>EthioSecScan</h2>
+      </div>
+                        <nav class="sidebar-nav">
+        <a href="dashboard.html" class="side-link"><span class="side-icon">📊</span> Dashboard</a>
+        <a href="new_scan.html" class="side-link"><span class="side-icon">⚡</span> New Scan</a>
+        <a href="history.html" class="side-link"><span class="side-icon">🕒</span> History</a>
+        <a href="results.html" class="side-link"><span class="side-icon">📈</span> Results</a>
+        <a href="reports.html" class="side-link"><span class="side-icon">📄</span> Reports</a>
+        <a href="ai_assistant.html" class="side-link active"><span class="side-icon">🤖</span> AI Assistant</a>
+        <div class="nav-divider" style="margin: 15px 0; border-top: 1px solid rgba(255,255,255,0.1);"></div>
+        <a href="settings.html" class="side-link"><span class="side-icon">⚙️</span> Settings</a>
+        <a href="#" class="side-link" data-action="logout"><span class="side-icon">🚪</span> Logout</a>
+      </nav>
+      
+      
+      
+      
+      
+      
+    </aside>
+
+    <main class="page-container">
+
+      <div class="page-header">
+        <div class="header-content">
+          <h1>AI Security Assistant</h1>
+          <p>Ask about findings the scanner already produced</p>
+        </div>
+        <a href="results.html" class="ghost-btn" id="backLink" hidden>← Back to results</a>
+      </div>
+
+      <section class="panel chat-panel">
+
+        <!-- Context chips show which scan/finding is in focus -->
+        <div class="context-row" id="contextRow"><!-- DATA: focus chips filled by ai_assistant.js -->
+          <span class="context-chip muted" id="chipNone">No scan in focus — answers will be general</span>
+        </div>
+
+        <div class="chat" id="chat"><!-- DATA: conversation bubbles rendered by ai_assistant.js --></div>
+
+        <div class="suggestions" id="suggestions">
+          <button class="suggestion" data-action="suggestion" type="button">How do I fix this?</button>
+          <button class="suggestion" data-action="suggestion" type="button">How severe is this really?</button>
+          <button class="suggestion" data-action="suggestion" type="button">What does the OWASP tag mean?</button>
+        </div>
+
+        <form class="composer" id="composer">
+          <input type="text" id="message" placeholder="Ask about this scan…" autocomplete="off">
+          <button class="primary-btn" id="sendBtn" data-action="send-message" type="submit">Send</button>
+        </form>
+
+        <p class="guardrail">
+          The assistant only explains findings the scanner produced. It never decides on its own that something is vulnerable.
+        </p>
+
+      </section>
+
+    </main>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  
+
+  <script src="../js/config.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/ai_assistant.js"></script>
+</body>
+</html>
+
