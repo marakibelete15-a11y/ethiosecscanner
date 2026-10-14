@@ -142,10 +142,14 @@ def test_redirect_to_private_ip_blocked_when_flag_off():
     mock_redirect_resp.is_redirect = True
     mock_redirect_resp.headers = {"Location": "http://10.0.0.1/admin"}
 
-    with patch("httpx.Client.request", return_value=mock_redirect_resp):
-        with pytest.raises(SSRFError) as exc_info:
-            client.get("https://example.com/redirect-to-private")
-        assert "private" in str(exc_info.value).lower()
+    public_dns = [
+        (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 0)),
+    ]
+    with patch("socket.getaddrinfo", return_value=public_dns):
+        with patch("httpx.Client.request", return_value=mock_redirect_resp):
+            with pytest.raises(SSRFError) as exc_info:
+                client.get("https://example.com/redirect-to-private")
+            assert "private" in str(exc_info.value).lower()
 
 
 def test_redirect_limit_exceeded_refused():

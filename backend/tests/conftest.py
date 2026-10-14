@@ -11,6 +11,7 @@ import sys
 import threading
 import time
 import pytest
+import bcrypt
 from contextlib import contextmanager
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse, Response
@@ -35,10 +36,12 @@ from app.models import Base
 
 @pytest.fixture(autouse=True)
 def disable_polite_delay_in_tests(monkeypatch):
-    """Keep production pacing but avoid artificial sleeps in the test suite."""
+    """Keep tests offline/fast without changing production safety behavior."""
     from app.scanner import engine
 
     monkeypatch.setattr(engine, "POLITE_DELAY_SECONDS", 0)
+    original_gensalt = bcrypt.gensalt
+    monkeypatch.setattr(bcrypt, "gensalt", lambda rounds=12, prefix=b"2b": original_gensalt(rounds=4, prefix=prefix))
 
 
 @contextmanager

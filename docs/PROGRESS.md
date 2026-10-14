@@ -121,6 +121,19 @@ Scoring and masking unit tests pass. Masking covers all Authorization header sch
 - Result: **97 passed, 12 warnings; pytest 56.60s, wall-clock 59.69s**. Warnings are Starlette TestClient/httpx and deprecated 422 status constant notices.
 - `git diff --check` and editor diagnostics pass.
 
+## Step 3F: Backend Wrap-Up
+
+- Production settings now reject `ALLOW_LOCAL_TARGETS=true` and JWT secrets under 32 characters or with fewer than 16 distinct characters. This is a baseline strength heuristic, not an entropy estimator or secret-management system.
+- Production disables `/docs`, `/redoc`, and `/openapi.json`. CORS now has an empty default allowlist and no wildcard fallback; configured comma-separated origins are parsed explicitly. `.env.example` uses an empty `CORS_ORIGINS` value.
+- Added direct pin `httpcore==1.0.9`, which is imported by the safe HTTP transport. Existing venv `pip check` is clean.
+- Made the private-redirect SSRF test deterministic by mocking DNS, eliminating an accidental public DNS dependency.
+- Reduced bcrypt cost to four rounds only within the pytest autouse fixture; production `hash_password` still uses bcrypt defaults. Full suite runtime decreased from 59.69s wall-clock (97 tests before this step; a later network-flaky run took 108s) to 21.74s wall-clock with expanded coverage.
+- Replaced the API endpoint index with a method/path/login/request/success/errors contract for all registered API routes. Expanded the security guide with SEC-1 through SEC-13, implementation references, and presentation limitations. Rewrote README with PostgreSQL role/database setup, env setup, venv install, migrations, dev-only seed, tests, API and demo start commands.
+- No model/database files changed. No package installed. The SRS remains absent; SEC-12’s intended definition is not guessed.
+- Full command: `/usr/bin/time -p venv/bin/pytest backend/tests/ -q`
+- Result: **102 passed, 12 warnings; pytest 16.22s, wall-clock 19.73s**. Warnings are Starlette TestClient/httpx and deprecated 422 status constant notices.
+- `venv/bin/pip check`, `git diff --check`, and editor diagnostics pass.
+
 ## Next
 
 Await the next explicitly requested step. Do not infer unprovided SRS requirements.

@@ -14,6 +14,7 @@ from fastapi.testclient import TestClient
 
 from app.core.database import SessionLocal
 from app.core.error_handlers import register_error_handlers
+from app.main import _configured_cors_origins, _documentation_urls
 from app.models import Scan, Target, User
 
 
@@ -52,6 +53,23 @@ def test_validation_error_returns_standard_envelope():
     assert "error" in data
     assert data["error"]["code"] == "VALIDATION_ERROR"
     assert "num" in data["error"]["message"]
+
+
+def test_production_disables_all_api_schema_routes():
+    assert _documentation_urls("production") == {
+        "docs_url": None,
+        "redoc_url": None,
+        "openapi_url": None,
+    }
+    assert _documentation_urls("development")["openapi_url"] == "/openapi.json"
+
+
+def test_cors_origins_parse_as_empty_default_or_explicit_allowlist():
+    assert _configured_cors_origins("") == []
+    assert _configured_cors_origins(" https://ui.example ,https://admin.example,") == [
+        "https://ui.example",
+        "https://admin.example",
+    ]
 
 
 def test_startup_marks_abandoned_scans_as_failed(db_session):

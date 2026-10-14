@@ -4,7 +4,7 @@ Application Settings using pydantic-settings and python-dotenv.
 
 from pathlib import Path
 from dotenv import load_dotenv
-from pydantic import field_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Locate root .env relative to this file: backend/app/core/settings.py -> root .env
@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "postgresql://ethiosec_user:password@localhost:5432/ethiosec_db"
     TEST_DATABASE_URL: str = "postgresql://ethiosec_user:password@localhost:5432/ethiosec_test_db"
 
-    CORS_ORIGINS: str = "http://127.0.0.1:8000,http://localhost:8000"
+    CORS_ORIGINS: str = ""
     ALLOW_LOCAL_TARGETS: bool = False
 
     SCANNER_MAX_CONCURRENT_REQUESTS: int = 5
@@ -43,11 +43,22 @@ class Settings(BaseSettings):
     @field_validator("JWT_SECRET_KEY")
     @classmethod
     def validate_jwt_secret_key(cls, v: str) -> str:
-        if not v or v == "replace-with-a-strong-jwt-secret-in-production" or len(v) < 32:
+        if (
+            not v
+            or v == "replace-with-a-strong-jwt-secret-in-production"
+            or len(v) < 32
+            or len(set(v)) < 16
+        ):
             raise ValueError(
-                "JWT_SECRET_KEY is missing, equals placeholder from .env.example, or is shorter than 32 characters."
+                "JWT_SECRET_KEY must be at least 32 characters and contain at least 16 distinct characters."
             )
         return v
+
+    @model_validator(mode="after")
+    def validate_production_settings(self):
+        if self.ENVIRONMENT == "production" and self.ALLOW_LOCAL_TARGETS:
+            raise ValueError("ALLOW_LOCAL_TARGETS must be false in production.")
+        return self
 
     @property
     def sync_database_url(self) -> str:

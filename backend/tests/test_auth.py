@@ -16,7 +16,7 @@ import uuid
 import pytest
 from fastapi.testclient import TestClient
 from app.core.security import get_jwt_secret, hash_password
-from app.core.settings import settings
+from app.core.settings import Settings, settings
 from app.main import app
 from app.models import User, UserSettings
 
@@ -259,3 +259,26 @@ def test_jwt_secret_enforced_in_any_environment(monkeypatch):
             with pytest.raises(RuntimeError) as exc_info:
                 get_jwt_secret()
             assert "JWT_SECRET_KEY" in str(exc_info.value)
+
+
+def test_weak_low_diversity_jwt_secret_rejected():
+    with pytest.raises(ValueError, match="16 distinct characters"):
+        Settings(JWT_SECRET_KEY="a" * 64)
+
+
+def test_production_rejects_local_target_override():
+    with pytest.raises(ValueError, match="ALLOW_LOCAL_TARGETS must be false"):
+        Settings(
+            ENVIRONMENT="production",
+            JWT_SECRET_KEY="a-test-secret-with-enough-diverse-characters-123456",
+            ALLOW_LOCAL_TARGETS=True,
+        )
+
+
+def test_production_configuration_accepts_safe_settings():
+    configured = Settings(
+        ENVIRONMENT="production",
+        JWT_SECRET_KEY="a-test-secret-with-enough-diverse-characters-123456",
+        ALLOW_LOCAL_TARGETS=False,
+    )
+    assert configured.ENVIRONMENT == "production"

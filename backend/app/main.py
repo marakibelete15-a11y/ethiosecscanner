@@ -26,6 +26,20 @@ from app.schemas.common import HealthResponse
 logger = logging.getLogger("ethiosec.app")
 
 
+def _documentation_urls(environment: str) -> dict[str, str | None]:
+    if environment == "production":
+        return {"docs_url": None, "redoc_url": None, "openapi_url": None}
+    return {
+        "docs_url": "/docs",
+        "redoc_url": "/redoc",
+        "openapi_url": "/openapi.json",
+    }
+
+
+def _configured_cors_origins(origins_setting: str) -> list[str]:
+    return [origin.strip() for origin in origins_setting.split(",") if origin.strip()]
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
@@ -67,16 +81,15 @@ app = FastAPI(
     title="EthioSec Scanner API",
     description="Web vulnerability scanner API with ownership verification and SSRF protection",
     version="1.0.0",
-    docs_url="/docs" if settings.ENVIRONMENT != "production" else None,
-    redoc_url="/redoc" if settings.ENVIRONMENT != "production" else None,
+    **_documentation_urls(settings.ENVIRONMENT),
     lifespan=lifespan,
 )
 
 # CORS Configuration
-origins = [origin.strip() for origin in settings.CORS_ORIGINS.split(",") if origin.strip()]
+origins = _configured_cors_origins(settings.CORS_ORIGINS)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins or ["*"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
