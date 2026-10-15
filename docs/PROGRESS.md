@@ -177,3 +177,12 @@ Await the next explicitly requested step. Do not infer unprovided SRS requiremen
 - Added Node unit tests for proof filtering, timestamps, and API error fallbacks, plus the target verification browser checklist.
 - Validation: `node --test frontend/tests/*.test.cjs` passed (5 tests); `venv/bin/pytest backend/tests/ -q` passed (110 tests, 12 existing deprecation warnings).
 - `git diff --check`, editor diagnostics, JavaScript syntax, and static asset/policy checks pass. No backend, database, or model files were changed; no packages were installed.
+
+## Phase 4C: Scan Setup and Live Progress
+
+- Replaced the imported new-scan placeholder behavior with user-scoped target/settings loading, verified-target selection, query preselection, saved depth defaults, all eleven module choices, authorization reminder, and guarded scan creation through `api.js`.
+- Replaced live-scan placeholder behavior with UUID query validation, authenticated status polling through chained timeouts, slower background polling, bounded network retries, module progress states, cancellation handling, and terminal-state links. Polling stops on terminal state and page exit.
+- Kept the imported shell and scanner styles; added page-scoped responsive styles. No inline scripts, inline event handlers, external scripts, or dynamic HTML injection were added.
+- Added Node helper tests and manual checklist coverage for setup, progress, cancellation, module errors, invalid/other-user IDs, network retries, and duplicate submissions.
+- Validation: `node --test frontend/tests/*.test.cjs` passed (13 tests); `venv/bin/pytest backend/tests/ -q` passed (110 tests, 12 existing deprecation warnings). `node --check` for both controllers and `git diff --check` pass.
+- No backend, database, or model files were changed; no packages were installed.

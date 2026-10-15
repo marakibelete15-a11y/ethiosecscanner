@@ -6,8 +6,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Scan in progress - EthioSecScan</title>
-  <link rel="stylesheet" href="../css/global.css">
-  <link rel="stylesheet" href="../css/scan.css">
+  <link rel="stylesheet" href="/static/css/global.css">
+  <link rel="stylesheet" href="/static/css/scan.css">
+  <link rel="stylesheet" href="/static/css/live_scan.css">
 </head>
 <body>
 
@@ -42,75 +43,41 @@
     </aside>
 
     <!-- ============ MAIN CONTENT ============ -->
-    <main class="page-container">
-
+    <main class="page-container live-scan-page">
       <div class="page-header">
         <div class="header-content">
-          <h1>Scanning website</h1>
-          <p id="scanTarget">Preparing target…<!-- DATA: scan target filled by live_scan.js --></p>
+          <h1>Scan progress</h1>
+          <p id="scanTarget">Loading scan status…</p>
         </div>
         <a href="new_scan.html" class="ghost-btn">← Back to scanner</a>
       </div>
 
       <section class="panel progress-panel">
-
-        <div class="progress-top">
-          <div class="progress-ring">
-            <svg viewBox="0 0 140 140">
-              <defs>
-                <linearGradient id="liveGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stop-color="#cc2f0c" />
-                  <stop offset="100%" stop-color="#1bb369" />
-                </linearGradient>
-              </defs>
-              <circle cx="70" cy="70" r="60" class="ring-bg" />
-              <circle cx="70" cy="70" r="60" class="ring-progress" id="ringProgress" />
-            </svg>
-            <div class="ring-center">
-              <span id="progressPercent">0%<!-- DATA: progress filled by live_scan.js --></span>
-              <small id="statusLabel">queued</small>
+        <div id="scanError" class="live-scan-error" role="alert" aria-live="assertive" hidden></div>
+        <p id="pollingStatus" class="live-scan-polling" role="status" aria-live="polite">Connecting to scan status…</p>
+        <div id="scanDetails" class="live-scan-details" hidden>
+          <div class="live-scan-status-row">
+            <div>
+              <p class="live-scan-label">Status</p>
+              <p class="live-scan-status" id="statusLabel">Queued</p>
             </div>
+            <div class="live-scan-progress-value" id="progressPercent">0%</div>
           </div>
-
-          <div class="progress-copy">
-            <h2 id="stageText">Queued — initializing scanning worker<!-- DATA: stage text filled by live_scan.js --></h2>
-            <p id="stageHint">Target accepted. Engine running pipeline diagnostics and module handshakes.</p>
-
-            <div class="progress-bar">
-              <div class="progress-fill" id="progressFill"></div>
-            </div>
-
-            <div class="meta-row">
-              <span>Scan ID: <strong id="scanIdLabel">—</strong></span>
-              <span>Depth: <strong id="depthLabel">Deep Audit</strong></span>
-              <span>Elapsed: <strong id="elapsed">0s</strong></span>
-            </div>
+          <div class="progress-bar" role="progressbar" id="scanProgress" aria-label="Scan progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+            <div class="progress-fill" id="progressFill"></div>
           </div>
+          <p class="live-scan-current" id="currentModule">Waiting for the scan worker…</p>
+          <p class="live-scan-error-message" id="scanFailureMessage" hidden></p>
+          <h2 class="live-scan-modules-heading">Module progress</h2>
+          <ul class="live-scan-modules" id="moduleProgressList"></ul>
         </div>
-
-        <!-- Check item grid -->
-        <div class="check-grid" id="checkGrid">
-          <div class="check" data-check="misconfig"><span class="check-dot"></span> Security misconfiguration</div>
-          <div class="check" data-check="https"><span class="check-dot"></span> SSL / TLS</div>
-          <div class="check" data-check="access_control"><span class="check-dot"></span> Broken Access Control</div>
-          <div class="check" data-check="auth"><span class="check-dot"></span> Authentication</div>
-          <div class="check" data-check="sqli"><span class="check-dot"></span> SQL Injection</div>
-          <div class="check" data-check="xss"><span class="check-dot"></span> Cross-Site Scripting (XSS)</div>
-          <div class="check" data-check="headers"><span class="check-dot"></span> Security Headers &amp; Cookies</div>
-        </div>
-
-        <div class="log-panel">
-          <div class="log-title">Pipeline</div>
-          <ul class="log" id="log"><!-- DATA: pipeline logs filled by live_scan.js --></ul>
-        </div>
-
         <div class="progress-actions">
-          <button class="ghost-btn" id="cancelScan" data-action="cancel-scan" type="button">Cancel scan</button>
-          <a class="primary-btn" id="viewResults" data-action="view-results" href="#" hidden>View results →</a>
+          <button class="ghost-btn" id="retryPolling" type="button" hidden>Retry status</button>
+          <button class="ghost-btn" id="cancelScan" type="button" hidden>Cancel scan</button>
+          <a class="primary-btn" id="viewResults" href="#" hidden>View results</a>
+          <a class="ghost-btn" id="startAnotherScan" href="new_scan.html" hidden>Start another scan</a>
         </div>
-
       </section>
-
     </main>
   </div>
 
@@ -118,10 +85,10 @@
 
   
 
-  <script src="../js/config.js"></script>
-  <script src="../js/api.js"></script>
-  <script src="../js/auth.js"></script>
-  <script src="../js/live_scan.js"></script>
+  <script src="/static/js/config.js"></script>
+  <script src="/static/js/api.js"></script>
+  <script src="/static/js/auth.js"></script>
+  <script src="/static/js/live_scan.js"></script>
 </body>
 </html>
 

@@ -1,0 +1,192 @@
+.live-scan-page {
+    max-width: 1100px;
+}
+
+.progress-panel {
+    min-width: 0;
+}
+
+.live-scan-error {
+    margin-bottom: 16px;
+    padding: 12px 14px;
+    border: 1px solid rgba(255, 107, 107, 0.4);
+    border-radius: 8px;
+    background: rgba(255, 107, 107, 0.09);
+    color: #ff9c9c;
+    font-size: 13px;
+    line-height: 1.55;
+    overflow-wrap: anywhere;
+}
+
+.live-scan-error[hidden],
+.live-scan-polling[hidden],
+.live-scan-details[hidden],
+.live-scan-error-message[hidden],
+.progress-actions [hidden] {
+    display: none;
+}
+
+.live-scan-polling {
+    margin-bottom: 18px;
+    color: var(--text-muted);
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.live-scan-status-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin: 4px 0 14px;
+}
+
+.live-scan-label {
+    margin-bottom: 4px;
+    color: var(--text-muted);
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.live-scan-status {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 22px;
+    font-weight: 700;
+}
+
+.live-scan-status.state-completed {
+    color: var(--accent);
+}
+
+.live-scan-status.state-failed,
+.live-scan-status.state-cancelled {
+    color: var(--danger);
+}
+
+.live-scan-progress-value {
+    color: var(--text);
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 26px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.progress-fill {
+    transition: width 0.4s ease;
+}
+
+.live-scan-current {
+    margin-top: 12px;
+    color: var(--text-muted);
+    font-size: 12px;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+}
+
+.live-scan-error-message {
+    margin-top: 12px;
+    padding: 10px 12px;
+    border-left: 3px solid var(--danger);
+    background: rgba(255, 107, 107, 0.08);
+    color: #ff9c9c;
+    font-size: 12px;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+}
+
+.live-scan-modules-heading {
+    margin: 26px 0 12px;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 16px;
+}
+
+.live-scan-modules {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 9px;
+    padding: 0;
+    list-style: none;
+}
+
+.module-progress-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-width: 0;
+    padding: 11px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface);
+}
+
+.module-progress-name {
+    min-width: 0;
+    color: var(--text-muted);
+    font-size: 12px;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+}
+
+.module-progress-state {
+    flex: 0 0 auto;
+    color: var(--text-muted);
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.module-progress-item.state-running {
+    border-color: rgba(255, 165, 0, 0.4);
+}
+
+.module-progress-item.state-running .module-progress-state {
+    color: var(--warning);
+}
+
+.module-progress-item.state-done {
+    border-color: rgba(27, 179, 105, 0.32);
+}
+
+.module-progress-item.state-done .module-progress-state {
+    color: var(--accent);
+}
+
+.module-progress-item.state-error .module-progress-state {
+    color: var(--danger);
+}
+
+.module-progress-empty {
+    grid-column: 1 / -1;
+    padding: 14px;
+    border: 1px dashed var(--border);
+    border-radius: 8px;
+    color: var(--text-muted);
+    font-size: 12px;
+}
+
+.progress-actions {
+    margin-top: 22px;
+}
+
+@media (max-width: 700px) {
+    .live-scan-page {
+        padding: 66px 18px 24px;
+    }
+
+    .progress-panel {
+        padding: 20px;
+    }
+
+    .live-scan-modules {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .progress-actions .ghost-btn,
+    .progress-actions .primary-btn {
+        width: 100%;
+        justify-content: center;
+        text-align: center;
+    }
+}

@@ -24,3 +24,26 @@ Run the API and serve the frontend from the same origin, then open the URLs list
 - [ ] Confirm a verified target has a Scan this target link to `new_scan.html?target=<id>`.
 - [ ] With no targets, confirm the friendly empty state. Confirm API/network errors appear visibly and the Refresh action retries the list.
 - [ ] Confirm no inline scripts, inline event handlers, `innerHTML`, or external scripts are used on this page.
+
+## New Scan (`/static/pages/new_scan.html`)
+
+- [ ] Open the page signed in. Confirm verified targets are selectable, unverified targets are disabled, and the verification link is present. With no verified targets, confirm the friendly empty state and link.
+- [ ] Open `new_scan.html?target=<verified-target-id>` and confirm only a matching verified target from the user's list is preselected. Try an invalid or unowned ID and confirm it is ignored.
+- [ ] Confirm quick, standard, and deep descriptions match their scan behavior and the preference from `/api/user/settings` is selected by default.
+- [ ] Confirm all eleven module choices start checked, Select all/none works, and an empty selection blocks submission with a clear message.
+- [ ] Confirm the legal notice appears above Start scan and the ownership/permission reminder checkbox is required to submit.
+- [ ] Start a scan against the demo target verified in Step 4B, selecting only a few modules. Confirm one `POST /api/scans` request contains `target_id`, `depth`, and the selected `modules`, then opens `live_scan.html?id=<id>`.
+- [ ] Double-click Start scan while the request is pending. Confirm only one create request is sent.
+- [ ] Try to select an unverified target and confirm it cannot be selected. Confirm server validation errors are shown using the API's message.
+- [ ] Confirm the page remains usable at phone width and has no inline scripts, inline event handlers, `innerHTML`, or external scripts.
+
+## Live Scan (`/static/pages/live_scan.html`)
+
+- [ ] Open a valid scan URL and confirm progress percentage, status, current module, and per-module pending/running/done/error states update as the scan progresses.
+- [ ] Start a demo-target scan with a few modules and watch progress move. Confirm requests to status are chained at about two-second intervals and never overlap; background tabs poll more slowly.
+- [ ] Cancel a queued/running scan and confirm the confirmation prompt, request result, and terminal cancelled state. Confirm polling stops after completion, failure, or cancellation.
+- [ ] Stop the demo target and start a scan; confirm a module error state is shown without breaking the page.
+- [ ] Open `live_scan.html` with a missing or malformed ID and confirm an error plus a link to scan history. Open a syntactically valid but nonexistent UUID and a scan ID belonging to another user; confirm “Scan not found”.
+- [ ] Simulate a temporary network failure. Confirm a few retries occur, then a clear message and Retry status button appear; confirm Retry resumes polling. Confirm a 401 is handled by shared `api.js` authentication.
+- [ ] On completion, confirm a clear completion message and View results link. On failed/cancelled status, confirm the status, fixed API error message when present, and links to new scan and results.
+- [ ] Confirm both pages remain usable at phone width and use no inline scripts, inline event handlers, `innerHTML`, or external scripts.
