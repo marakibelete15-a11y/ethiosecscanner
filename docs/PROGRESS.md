@@ -168,3 +168,12 @@ Scoring and masking unit tests pass. Masking covers all Authorization header sch
 ## Next
 
 Await the next explicitly requested step. Do not infer unprovided SRS requirements.
+
+## Phase 4B: Target Verification Frontend
+
+- Completed the target ownership page with the imported sidebar/layout, legal notice, responsive add-target form, user-scoped target list, and empty/loading/error states.
+- Wired target list/create/detail/verify/delete through `api.js`; page access is gated by `Auth.requireAuth()`. Proof values are created with DOM nodes and `textContent`, filtered to the selected method, and each has a clipboard action with a plain-text fallback.
+- Verification status is only marked successful when the API returns `is_verified: true`; failures show the API detail and updated last-checked timestamp. Delete confirmation warns that associated scans and findings are removed. Verified targets link to the Step 4C scan URL.
+- Added Node unit tests for proof filtering, timestamps, and API error fallbacks, plus the target verification browser checklist.
+- Validation: `node --test frontend/tests/*.test.cjs` passed (5 tests); `venv/bin/pytest backend/tests/ -q` passed (110 tests, 12 existing deprecation warnings).
+- `git diff --check`, editor diagnostics, JavaScript syntax, and static asset/policy checks pass. No backend, database, or model files were changed; no packages were installed.

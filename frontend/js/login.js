@@ -7,6 +7,7 @@
 	const errorElement = document.getElementById("formError");
 	const statusElement = document.getElementById("formStatus");
 	const submitButton = document.getElementById("loginBtn");
+	let isSubmitting = false;
 
 	function showError(message) {
 		errorElement.textContent = message;
@@ -29,6 +30,7 @@
 
 	form.addEventListener("submit", async (event) => {
 		event.preventDefault();
+		if (isSubmitting) return;
 		errorElement.hidden = true;
 		statusElement.hidden = true;
 		if (!Auth.validateEmail(emailInput.value)) {
@@ -42,12 +44,14 @@
 			return;
 		}
 
+		isSubmitting = true;
 		setLoading(true);
 		try {
 			await Auth.login(emailInput.value, passwordInput.value);
 		} catch (error) {
 			showError(error.message);
 		} finally {
+			isSubmitting = false;
 			setLoading(false);
 		}
 	});

@@ -9,6 +9,7 @@
 	const errorElement = document.getElementById("formError");
 	const statusElement = document.getElementById("formStatus");
 	const submitButton = document.getElementById("signupBtn");
+	let isSubmitting = false;
 
 	function showError(message) {
 		errorElement.textContent = message;
@@ -33,8 +34,14 @@
 
 	form.addEventListener("submit", async (event) => {
 		event.preventDefault();
+		if (isSubmitting) return;
 		errorElement.hidden = true;
 		statusElement.hidden = true;
+		if (!nameInput.value.trim()) {
+			showError("Enter your full name.");
+			nameInput.focus();
+			return;
+		}
 		if (!Auth.validateEmail(emailInput.value)) {
 			showError("Enter a valid email address.");
 			emailInput.focus();
@@ -56,6 +63,7 @@
 			return;
 		}
 
+		isSubmitting = true;
 		setLoading(true);
 		try {
 			await Auth.register({
@@ -67,6 +75,7 @@
 		} catch (error) {
 			showError(error.message);
 		} finally {
+			isSubmitting = false;
 			setLoading(false);
 		}
 	});

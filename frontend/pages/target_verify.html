@@ -4,8 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Target Ownership Verification - EthioSecScan</title>
-  <link rel="stylesheet" href="../css/global.css">
-  <link rel="stylesheet" href="../css/scan.css">
+  <link rel="stylesheet" href="/static/css/global.css">
+  <link rel="stylesheet" href="/static/css/scan.css">
+  <link rel="stylesheet" href="/static/css/target_verify.css">
 </head>
 <body>
 
@@ -31,31 +32,70 @@
       </div>
     </aside>
 
-    <main class="page-container">
+    <main class="page-container target-page">
       <div class="page-header">
         <div class="header-content">
           <h1>Target Verification</h1>
-          <p>Verify ownership of your target domain prior to scanning</p>
+          <p>Manage targets and prove ownership before scanning</p>
         </div>
       </div>
 
-      <section class="panel">
+      <p class="legal-notice" role="note">Only scan websites you own or have written permission to test. Scanning systems without permission may be illegal.</p>
+
+      <section class="panel target-panel" aria-labelledby="addTargetHeading">
         <div class="card-header">
-          <h2>Ownership Challenge</h2>
+          <h2 id="addTargetHeading">Add a target</h2>
         </div>
-        <div id="targetVerifyContainer">
-          <!-- DATA: target verification details filled by target_verify.js -->
-          <p class="empty-state">Select a target or enter a URL to verify ownership.</p>
+        <form id="addTargetForm" class="target-form" novalidate>
+          <div class="target-form-fields">
+            <label class="target-field" for="targetUrl">
+              <span>Website URL</span>
+              <input id="targetUrl" name="url" type="url" placeholder="https://example.com" autocomplete="url" required>
+            </label>
+            <label class="target-field" for="verificationMethod">
+              <span>Verification method</span>
+              <select id="verificationMethod" name="verification_method">
+                <option value="meta_tag">Meta tag</option>
+                <option value="dns_txt">DNS TXT record</option>
+                <option value="http_file">Verification file</option>
+              </select>
+            </label>
+            <button class="target-button target-button-primary" id="addTargetButton" type="submit">Add target</button>
+          </div>
+          <p class="target-form-help">Private, loopback, and cloud-metadata addresses are refused.</p>
+          <p class="target-feedback" id="addTargetFeedback" role="alert" aria-live="assertive" hidden></p>
+          <p class="target-loading" id="addTargetLoading" role="status" aria-live="polite" hidden>Adding target…</p>
+        </form>
+      </section>
+
+      <section class="panel target-panel" aria-labelledby="targetsHeading">
+        <div class="card-header">
+          <h2 id="targetsHeading">Your targets</h2>
+          <button class="target-button target-button-quiet" id="refreshTargetsButton" type="button">Refresh</button>
         </div>
+        <p class="target-loading" id="targetsLoading" role="status" aria-live="polite">Loading your targets…</p>
+        <p class="target-feedback" id="targetsFeedback" role="alert" aria-live="assertive" hidden></p>
+        <div class="target-list" id="targetList" aria-live="polite"></div>
+      </section>
+
+      <section class="panel target-panel" id="instructionsPanel" aria-labelledby="instructionsHeading" hidden>
+        <div class="card-header">
+          <div>
+            <h2 id="instructionsHeading">Ownership proof</h2>
+            <p class="target-selected-url" id="selectedTargetUrl"></p>
+          </div>
+        </div>
+        <div id="targetVerifyContainer" class="proof-container"></div>
+        <p class="target-feedback" id="verifyFeedback" role="alert" aria-live="assertive" hidden></p>
       </section>
     </main>
   </div>
 
   <div class="toast" id="toast"></div>
 
-  <script src="../js/config.js"></script>
-  <script src="../js/api.js"></script>
-  <script src="../js/auth.js"></script>
-  <script src="../js/target_verify.js"></script>
+  <script src="/static/js/config.js"></script>
+  <script src="/static/js/api.js"></script>
+  <script src="/static/js/auth.js"></script>
+  <script src="/static/js/target_verify.js"></script>
 </body>
 </html>
