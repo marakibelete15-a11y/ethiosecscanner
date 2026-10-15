@@ -6,8 +6,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Scan History - EthioSecScan</title>
-    <link rel="stylesheet" href="../css/global.css">
-    <link rel="stylesheet" href="../css/scan.css">
+    <link rel="stylesheet" href="/static/css/global.css">
+    <link rel="stylesheet" href="/static/css/scan.css">
+    <link rel="stylesheet" href="/static/css/history_page.css">
 </head>
 <body>
 
@@ -40,7 +41,7 @@
         </div>
     </aside>
 
-    <main class="page-container">
+    <main class="page-container history-page">
 
         <div class="page-header">
             <div class="header-content">
@@ -50,72 +51,56 @@
             <a href="new_scan.html" class="primary-btn">🔍 New scan</a>
         </div>
 
-        <!-- Totals derived from scan database -->
-        <div class="stats-grid">
-            <div class="stat-card">
-                <div class="stat-label">Total Scans</div>
-                <div class="stat-value" id="statTotal">—</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">Clean</div>
-                <div class="stat-value safe-number" id="statSafe">—</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">Warnings</div>
-                <div class="stat-value warning-number" id="statWarning">—</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">Critical / High</div>
-                <div class="stat-value danger-number" id="statDanger">—</div>
-            </div>
-        </div>
-
         <div class="filters-section">
             <div class="filter-group">
                 <label for="statusFilter">Filter by status</label>
                 <select id="statusFilter">
                     <option value="all">All</option>
-                    <option value="safe">Clean</option>
-                    <option value="warning">Warning</option>
-                    <option value="danger">Critical / High</option>
-                    <option value="running">Still running</option>
+                    <option value="queued">Queued</option>
+                    <option value="running">Running</option>
+                    <option value="completed">Completed</option>
+                    <option value="failed">Failed</option>
+                    <option value="cancelled">Cancelled</option>
                 </select>
             </div>
 
             <div class="filter-group">
-                <label>Date range</label>
-                <div class="date-fields">
-                    <input type="date" id="dateFrom">
-                    <span>to</span>
-                    <input type="date" id="dateTo">
-                </div>
-            </div>
-
-            <div class="filter-group search-group">
-                <label for="searchInput">Search</label>
-                <input type="search" id="searchInput" placeholder="Search URLs…">
+                <label for="targetFilter">Filter by target</label>
+                <select id="targetFilter">
+                    <option value="all">All targets</option>
+                </select>
             </div>
         </div>
+        <p class="history-filter-error" id="targetFilterError" role="alert" aria-live="assertive" hidden></p>
 
         <div class="table-container">
             <div class="table-header">
                 <h2>Scans</h2>
-                <span id="resultCount">—<!-- DATA: count filled by history.js --></span>
+                <span id="resultCount">Loading…</span>
             </div>
 
+            <p class="history-loading" id="historyLoading" role="status" aria-live="polite">Loading scan history…</p>
+            <p class="history-error" id="historyError" role="alert" aria-live="assertive" hidden></p>
+            <p class="history-empty" id="historyEmpty" hidden>No scans yet. <a href="new_scan.html">Start a new scan</a>.</p>
+
             <div class="table-wrapper">
-                <table>
+                <table class="history-table">
                     <thead>
                         <tr>
                             <th>URL</th>
                             <th>Status</th>
+                            <th>Depth</th>
                             <th>Score</th>
-                            <th>Scan date</th>
-                            <th>Issues</th>
+                            <th>Started</th>
+                            <th>Critical</th>
+                            <th>High</th>
+                            <th>Medium</th>
+                            <th>Low</th>
+                            <th>Info</th>
                             <th>Action</th>
                         </tr>
                     </thead>
-                    <tbody id="tableBody"><!-- DATA: scan history rows filled by history.js --></tbody>
+                    <tbody id="tableBody"></tbody>
                 </table>
             </div>
         </div>
@@ -133,10 +118,10 @@
 
 
 
-<script src="../js/config.js"></script>
-<script src="../js/api.js"></script>
-<script src="../js/auth.js"></script>
-<script src="../js/history.js"></script>
+<script src="/static/js/config.js"></script>
+<script src="/static/js/api.js"></script>
+<script src="/static/js/auth.js"></script>
+<script src="/static/js/history.js"></script>
 
 </body>
 </html>

@@ -47,3 +47,27 @@ Run the API and serve the frontend from the same origin, then open the URLs list
 - [ ] Simulate a temporary network failure. Confirm a few retries occur, then a clear message and Retry status button appear; confirm Retry resumes polling. Confirm a 401 is handled by shared `api.js` authentication.
 - [ ] On completion, confirm a clear completion message and View results link. On failed/cancelled status, confirm the status, fixed API error message when present, and links to new scan and results.
 - [ ] Confirm both pages remain usable at phone width and use no inline scripts, inline event handlers, `innerHTML`, or external scripts.
+
+## Scan Results (`/static/pages/results.html`)
+
+- [ ] Run the demo target scan with findings, open its results, and confirm the Critical count appears first and prominently. With a Critical finding, confirm the verdict is Critical and the page never shows safe/no-vulnerabilities copy.
+- [ ] Confirm target URL, scan start/finish times, depth, score, verdict, Critical/High/Medium/Low/Info counts, Passed count, and scanner-error count are shown.
+- [ ] Filter findings by severity, module, status, and title/URL search. Confirm top-level severity totals do not change when filters change.
+- [ ] Change a finding status and confirm the API update and status badge; confirm the score and verdict remain unchanged after marking false positive.
+- [ ] Expand evidence and confirm it is in a `<pre>`, masked, and contains no cookie values. Confirm demo fake XSS/stack-trace strings are plain text and never execute.
+- [ ] Try affected URLs beginning with `javascript:` and `data:` in a finding fixture; confirm they remain plain text. Confirm valid HTTP(S) URLs use safe new-tab links.
+- [ ] Open results with a malformed ID, a valid made-up UUID, and another user's scan ID. Confirm malformed input shows an ID error, and missing/other-user scans show the same not-found message.
+- [ ] Open a queued/running scan's results and confirm its status and live-scan link; confirm failed/cancelled scans show status and fixed API error text.
+- [ ] Confirm clean scans say only that checks which ran found nothing and include the Passed count; when scanner errors exist, confirm the page says checks could not run.
+- [ ] Confirm Run another scan carries the target ID when available, and report creation is not offered. Check the page at phone width.
+
+## Scan History (`/static/pages/history.html`)
+
+- [ ] Confirm history requests use page/page_size=10, and status and target filters are sent to the API. Verify targets populate the target filter.
+- [ ] Page forward and backward; confirm total and page labels, end-state disabling, and disabled controls while loading.
+- [ ] Confirm each row shows target URL, status, depth, progress or score, start time, and severity counts with Critical first. At phone width, confirm rows stack without horizontal scrolling.
+- [ ] Open a completed row to results and a queued/running row to live scan.
+- [ ] Delete a finished scan and confirm its findings/reports warning, deletion, and refreshed list. Delete a running scan and confirm the API 409 message advises cancelling first.
+- [ ] Delete the only row on a later page and confirm the list moves back to the previous page. Confirm an empty history links to New Scan.
+- [ ] Confirm API errors are visible and repeated delete/page clicks do not send duplicate actions.
+- [ ] Confirm both pages use no inline scripts, inline event handlers, `innerHTML`, or external scripts.

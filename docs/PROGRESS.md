@@ -186,3 +186,12 @@ Await the next explicitly requested step. Do not infer unprovided SRS requiremen
 - Added Node helper tests and manual checklist coverage for setup, progress, cancellation, module errors, invalid/other-user IDs, network retries, and duplicate submissions.
 - Validation: `node --test frontend/tests/*.test.cjs` passed (13 tests); `venv/bin/pytest backend/tests/ -q` passed (110 tests, 12 existing deprecation warnings). `node --check` for both controllers and `git diff --check` pass.
 - No backend, database, or model files were changed; no packages were installed.
+
+## Phase 4D: Results and Scan History
+
+- Replaced Results placeholders with UUID-validated result loading, Critical-first severity totals, score/verdict/status summaries, browser-side severity/module/status/search filters, and finding status updates through `api.js`.
+- Results use the documented scan-detail endpoint alongside the results endpoint because the results response does not itself contain target URL, target ID, depth, or scan timestamps. This is an existing documented API split, not a mismatch; no backend changes were needed.
+- Finding text and evidence are rendered through text nodes/`textContent`; evidence uses `<pre>`. Only validated HTTP(S) affected URLs become links, with `noopener noreferrer`. Verdict precedence prevents Critical findings and scanner errors from being reported as safe; incomplete scans use fixed incomplete-state copy.
+- Replaced History placeholders with server-side status/target filtering, ten-item pagination, responsive stacked rows, target URL resolution, and confirmed deletion with the server's active-scan conflict message.
+- Added Node helper tests and manual checklists for hostile finding text, verdicts, filters, statuses, pagination, and deletion. No inline scripts, event attributes, `innerHTML`, external scripts, backend/database/model edits, or package installs.
+- Validation: `node --test frontend/tests/*.test.cjs` passed (22 tests); `venv/bin/pytest backend/tests/ -q` passed (110 tests, 12 existing deprecation warnings). Controller syntax, editor diagnostics, static asset/policy checks, and `git diff --check` pass.

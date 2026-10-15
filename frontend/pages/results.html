@@ -6,8 +6,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Scan Results - EthioSecScan</title>
-  <link rel="stylesheet" href="../css/global.css">
-  <link rel="stylesheet" href="../css/results.css">
+  <link rel="stylesheet" href="/static/css/global.css">
+  <link rel="stylesheet" href="/static/css/results.css">
+  <link rel="stylesheet" href="/static/css/results_page.css">
 </head>
 <body>
 
@@ -39,20 +40,23 @@
       </div>
     </aside>
 
-    <main class="page-container">
+    <main class="page-container results-page">
       <div class="page-header">
         <div class="header-content">
           <h1>Scan Results</h1>
-          <p id="resultTarget">Loading…<!-- DATA: target URL filled by results.js --></p>
+          <p id="resultTarget">Loading scan results…</p>
         </div>
         <div class="header-actions">
-          <a href="new_scan.html" class="ghost-btn">Scan another URL</a>
-          <a href="reports.html" class="primary-btn" id="openReport">Full report →</a>
+          <a href="history.html" class="ghost-btn">Scan history</a>
+          <a href="new_scan.html" class="primary-btn" id="runAnotherScan" hidden>Run another scan</a>
         </div>
       </div>
 
+      <p class="results-error" id="pageError" role="alert" aria-live="assertive" hidden></p>
+      <p class="results-loading" id="pageLoading" role="status" aria-live="polite">Loading scan results…</p>
+
       <!-- ---------- Score summary ---------- -->
-      <section class="panel score-panel">
+      <section class="panel score-panel" id="summaryPanel" hidden>
         <div class="score-ring">
           <svg viewBox="0 0 140 140">
             <defs>
@@ -71,24 +75,32 @@
         </div>
 
         <div class="score-side">
-          <h2 id="verdict">Scoring…<!-- DATA: verdict filled by results.js --></h2>
-          <p id="verdictNote">Findings evaluated from local scanner results.</p>
+          <h2 id="verdict">Scan verdict</h2>
+          <p id="verdictNote"></p>
+          <p class="scanner-errors-note" id="scannerErrorNote" hidden>Some checks could not run.</p>
 
           <div class="count-grid">
-            <button class=\"count high\" data-filter=\"high\" data-action=\"filter-severity\" type="button"><b id="cHigh">0</b><span>High</span></button>
-            <button class=\"count medium\" data-filter=\"medium\" data-action=\"filter-severity\" type="button"><b id="cMedium">0</b><span>Medium</span></button>
-            <button class=\"count low\" data-filter=\"low\" data-action=\"filter-severity\" type="button"><b id="cLow">0</b><span>Low</span></button>
-            <button class=\"count passed\" data-filter=\"not_detected\" data-action=\"filter-severity\" type="button"><b id="cPassed">0</b><span>Not Detected</span></button>
-            <button class=\"count error\" data-filter=\"scanner_error\" data-action=\"filter-severity\" type="button"><b id="cError">0</b><span>Scanner Error</span></button>
+            <div class="count critical"><b id="countCritical">0</b><span>Critical</span></div>
+            <div class="count high"><b id="countHigh">0</b><span>High</span></div>
+            <div class="count medium"><b id="countMedium">0</b><span>Medium</span></div>
+            <div class="count low"><b id="countLow">0</b><span>Low</span></div>
+            <div class="count info"><b id="countInfo">0</b><span>Info</span></div>
+            <div class="count passed"><b id="countPassed">0</b><span>Passed</span></div>
+            <div class="count error"><b id="countErrors">0</b><span>Scanner errors</span></div>
           </div>
 
           <div class="scan-meta">
             <span>Scan ID: <strong id="scanIdLabel">—</strong></span>
             <span>Depth: <strong id="depthLabel">—</strong></span>
+            <span>Started: <strong id="startedLabel">—</strong></span>
             <span>Finished: <strong id="finishedLabel">—</strong></span>
           </div>
         </div>
       </section>
+
+      <p class="status-note" id="scanStatusNote" role="status" aria-live="polite" hidden></p>
+      <a class="live-scan-link" id="liveScanLink" href="#" hidden>Open live scan status</a>
+      <p class="false-positive-note">Marking a finding as a false positive does not change this scan's score or verdict.</p>
 
       <!-- ---------- Findings ---------- -->
       <section class="panel findings-panel">
@@ -96,24 +108,28 @@
           <h2>Findings</h2>
           <div class="filters">
             <select id="severityFilter">
-              <option value="all">All results</option>
-              <option value="confirmed">Confirmed issues only</option>
+              <option value="all">All severities</option>
+              <option value="critical">Critical</option>
               <option value="high">High</option>
               <option value="medium">Medium</option>
               <option value="low">Low</option>
-              <option value="not_detected">Not Detected</option>
-              <option value="scanner_error">Scanner Error</option>
+              <option value="info">Info</option>
             </select>
             <select id="moduleFilter">
               <option value="all">All modules</option>
+            </select>
+            <select id="statusFilter">
+              <option value="all">All statuses</option>
+              <option value="open">Open</option>
+              <option value="confirmed">Confirmed</option>
+              <option value="false_positive">False positive</option>
+              <option value="resolved">Resolved</option>
             </select>
             <input type="search" id="findingSearch" placeholder="Search findings…">
           </div>
         </div>
 
-        <div class="finding-list" id="findingList"><!-- DATA: findings cards populated by results.js -->
-          <p class="loading-state">Loading findings…</p>
-        </div>
+        <div class="finding-list" id="findingList" aria-live="polite"></div>
       </section>
     </main>
   </div>
@@ -174,10 +190,10 @@
 
   
 
-  <script src="../js/config.js"></script>
-  <script src="../js/api.js"></script>
-  <script src="../js/auth.js"></script>
-  <script src="../js/results.js"></script>
+  <script src="/static/js/config.js"></script>
+  <script src="/static/js/api.js"></script>
+  <script src="/static/js/auth.js"></script>
+  <script src="/static/js/results.js"></script>
 </body>
 </html>
 
