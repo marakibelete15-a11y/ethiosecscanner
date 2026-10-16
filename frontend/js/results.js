@@ -79,12 +79,22 @@
 		return Number.isNaN(date.getTime()) ? "Not available" : date.toLocaleString();
 	}
 
+	function canCreateReport(status) {
+		return String(status || "").toLowerCase() === "completed";
+	}
+
+	function getReportDestination(reportId) {
+		return `reports.html?id=${encodeURIComponent(reportId || "")}`;
+	}
+
 	if (typeof module !== "undefined" && module.exports) {
 		module.exports = {
 			FINDING_STATUSES,
 			SEVERITY_ORDER,
+			canCreateReport,
 			filterFindings,
 			formatTimestamp,
+			getReportDestination,
 			getSeverityCount,
 			getVerdictKey,
 			getVerdictMessage,
@@ -106,6 +116,7 @@
 	const statusFilter = document.getElementById("statusFilter");
 	const findingSearch = document.getElementById("findingSearch");
 	const runAnotherScan = document.getElementById("runAnotherScan");
+	const createReportBtn = document.getElementById("createReportBtn");
 	const liveScanLink = document.getElementById("liveScanLink");
 	const scanStatusNote = document.getElementById("scanStatusNote");
 	const savingFindings = new Set();
@@ -249,6 +260,9 @@
 			runAnotherScan.href = `new_scan.html?target=${encodeURIComponent(details.target_id)}`;
 			runAnotherScan.hidden = false;
 		}
+		if (createReportBtn) {
+			createReportBtn.hidden = !isCompleted;
+		}
 		if (status !== "completed") {
 			setText(scanStatusNote, `This scan is ${status}. ${details.error_message || "Results may be incomplete."}`);
 			scanStatusNote.hidden = false;
@@ -305,6 +319,28 @@
 		}
 	}
 
+	async function createReport() {
+		if (!scanId || !createReportBtn || createReportBtn.disabled) return;
+		createReportBtn.disabled = true;
+		createReportBtn.textContent = "Creating report…";
+		try {
+			const report = await Api.post("/api/reports", {
+				scan_id: scanId,
+				report_format: "pdf"
+			});
+			if (report && report.id) {
+				globalThis.location.assign(getReportDestination(report.id));
+				return;
+			}
+			throw new Error("Report created but no report ID was returned.");
+		} catch (error) {
+			showError(error.message || "Could not create report.");
+			createReportBtn.disabled = false;
+			createReportBtn.textContent = "Create report";
+		}
+	}
+
+	createReportBtn?.addEventListener("click", createReport);
 	for (const filter of [severityFilter, moduleFilter, statusFilter]) filter.addEventListener("change", renderFindings);
 	findingSearch.addEventListener("input", renderFindings);
 	findingList.addEventListener("change", (event) => {

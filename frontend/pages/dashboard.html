@@ -53,7 +53,39 @@
         </aside>
 
         <!-- ============ MAIN CONTENT ============ -->
-        <main class="dashboard-container" id="authLoading" role="status" aria-live="polite">Checking your session…</main>
+        <main class="dashboard-container dashboard-page">
+            <header class="dashboard-header">
+                <div class="header-content">
+                    <h1>Security dashboard</h1>
+                    <p>Current posture across your verified targets and completed scans.</p>
+                </div>
+                <div class="dashboard-quick-links">
+                    <a class="scan-btn-header" href="new_scan.html">Start a scan</a>
+                    <a class="dashboard-secondary-link" href="target_verify.html">Add a target</a>
+                </div>
+            </header>
+            <p class="dashboard-loading" id="dashboardLoading" role="status" aria-live="polite">Loading dashboard summary…</p>
+            <p class="dashboard-error" id="dashboardError" role="alert" aria-live="assertive" hidden></p>
+            <section class="dashboard-stats" aria-label="Account scan summary">
+                <div class="dashboard-stat"><span>Total targets</span><strong id="totalTargets">0</strong></div>
+                <div class="dashboard-stat"><span>Verified targets</span><strong id="verifiedTargets">0</strong></div>
+                <div class="dashboard-stat"><span>Total scans</span><strong id="totalScans">0</strong></div>
+                <div class="dashboard-stat"><span>Completed scans</span><strong id="completedScans">0</strong></div>
+                <div class="dashboard-stat dashboard-score"><span>Latest security score</span><strong id="latestScore">—</strong></div>
+            </section>
+            <div class="dashboard-content-grid">
+                <section class="dashboard-panel" aria-labelledby="severityHeading">
+                    <div class="card-header"><h2 id="severityHeading">Severity distribution</h2></div>
+                    <div class="severity-bars" id="severityBars"></div>
+                    <p class="severity-explanation">Counts open and confirmed findings from the latest completed scan of each target. Findings marked false positive or resolved are not counted.</p>
+                </section>
+                <section class="dashboard-panel" aria-labelledby="recentHeading">
+                    <div class="card-header"><h2 id="recentHeading">Recent scans</h2><a class="view-all" href="history.html">View history</a></div>
+                    <p class="dashboard-empty" id="dashboardEmpty" hidden>No scans yet. <a href="target_verify.html">Add and verify a target</a>, then <a href="new_scan.html">start your first scan</a>.</p>
+                    <div class="recent-scan-list" id="recentScans"></div>
+                </section>
+            </div>
+        </main>
     </div>
 
     

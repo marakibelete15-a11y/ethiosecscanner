@@ -25,6 +25,7 @@
 .status-note[hidden],
 .live-scan-link[hidden],
 #summaryPanel[hidden],
+#createReportBtn[hidden],
 #runAnotherScan[hidden] {
     display: none;
 }

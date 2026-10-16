@@ -59,7 +59,7 @@ Run the API and serve the frontend from the same origin, then open the URLs list
 - [ ] Open results with a malformed ID, a valid made-up UUID, and another user's scan ID. Confirm malformed input shows an ID error, and missing/other-user scans show the same not-found message.
 - [ ] Open a queued/running scan's results and confirm its status and live-scan link; confirm failed/cancelled scans show status and fixed API error text.
 - [ ] Confirm clean scans say only that checks which ran found nothing and include the Passed count; when scanner errors exist, confirm the page says checks could not run.
-- [ ] Confirm Run another scan carries the target ID when available, and report creation is not offered. Check the page at phone width.
+- [ ] Confirm Run another scan carries the target ID when available. On completed scans, confirm the Create report button is visible. Select Create report and confirm it disables with a visible pending state, issues POST /api/reports {scan_id, report_format: "pdf"}, and navigates to reports.html?id=<report id> on 200/201. Confirm non-completed scans keep Create report hidden, and any API failure (such as 409) shows the server's error message. Check the page at phone width.
 
 ## Scan History (`/static/pages/history.html`)
 
@@ -71,3 +71,13 @@ Run the API and serve the frontend from the same origin, then open the URLs list
 - [ ] Delete the only row on a later page and confirm the list moves back to the previous page. Confirm an empty history links to New Scan.
 - [ ] Confirm API errors are visible and repeated delete/page clicks do not send duplicate actions.
 - [ ] Confirm both pages use no inline scripts, inline event handlers, `innerHTML`, or external scripts.
+
+## Security Dashboard (`/static/pages/dashboard.html`)
+
+- [ ] Open the dashboard while signed in. Confirm the loading state appears politely and the page loads `/api/dashboard/summary`.
+- [ ] Verify the five summary counters display total targets, verified targets, total scans, completed scans, and latest security score (or "—" if none).
+- [ ] With a fresh user account having no scans, confirm the empty state is displayed with zeros, the friendly message, and working links to `target_verify.html` and `new_scan.html`.
+- [ ] Confirm severity distribution renders 5 plain HTML/CSS bars in exact order: Critical, High, Medium, Low, Info, with numbers printed beside each bar. Confirm the exact note is present beneath: "Counts open and confirmed findings from the latest completed scan of each target. Findings marked false positive or resolved are not counted."
+- [ ] Confirm recent scans display up to 5 scans with target URL, status badge, score, and started time. Confirm queued/running scans link to `live_scan.html?id=<id>` and completed/failed/cancelled scans link to `results.html?id=<id>`.
+- [ ] Confirm API errors show the server's message visibly, and the dashboard remains fully usable at phone widths without layout breakages.
+- [ ] Confirm no inline scripts, inline event handlers, `innerHTML`, or external scripts are used on this page.
