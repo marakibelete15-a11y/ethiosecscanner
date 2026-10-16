@@ -1,18 +1,15 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 
+const reportHelpers = require("../js/report_helpers.js");
 const {
 	SEVERITY_ORDER,
-	canCreateReport,
 	filterFindings,
-	getReportDestination,
-	getVerdictKey,
-	getVerdictMessage,
 	getSeverityCount,
-	isSafeHttpUrl,
 	parseScanId,
 	severityClass
 } = require("../js/results.js");
+const { getVerdictKey, getVerdictMessage, isSafeHttpUrl } = reportHelpers;
 
 test("results query parser accepts only UUID scan IDs", () => {
 	assert.equal(parseScanId("?id=550e8400-e29b-41d4-a716-446655440000"), "550e8400-e29b-41d4-a716-446655440000");
@@ -57,17 +54,4 @@ test("only valid HTTP and HTTPS URLs may become links", () => {
 	assert.equal(isSafeHttpUrl("javascript:alert(1)"), false);
 	assert.equal(isSafeHttpUrl("data:text/html,hi"), false);
 	assert.equal(isSafeHttpUrl("https://"), false);
-});
-
-test("report creation is permitted only for completed scans and builds report destination", () => {
-	assert.equal(canCreateReport("completed"), true);
-	assert.equal(canCreateReport("COMPLETED"), true);
-	assert.equal(canCreateReport("running"), false);
-	assert.equal(canCreateReport("queued"), false);
-	assert.equal(canCreateReport("failed"), false);
-	assert.equal(canCreateReport(null), false);
-	assert.equal(
-		getReportDestination("550e8400-e29b-41d4-a716-446655440000"),
-		"reports.html?id=550e8400-e29b-41d4-a716-446655440000"
-	);
 });

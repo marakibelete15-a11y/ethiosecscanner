@@ -8,6 +8,7 @@
   <title>Reports - EthioSecScan</title>
   <link rel="stylesheet" href="/static/css/global.css">
   <link rel="stylesheet" href="/static/css/reports.css">
+  <link rel="stylesheet" href="/static/css/reports_page.css">
 </head>
 <body>
 
@@ -46,39 +47,35 @@
 
       <div class="page-header">
         <div class="header-content">
-          <h1>Security Reports</h1>
-          <p id="reportsHeaderSubtitle">Formal, shareable version of every completed scan</p>
+          <h1>Reports</h1>
+          <p>Review and print structured reports from completed scans.</p>
         </div>
-        <div class="header-actions">
-          <a href="new_scan.html" class="primary-btn">🔍 New scan</a>
-        </div>
+        <a href="new_scan.html" class="primary-btn">🔍 New scan</a>
       </div>
-
-      <p class="reports-error" id="pageError" role="alert" aria-live="assertive" hidden></p>
-      <p class="reports-loading" id="pageLoading" role="status" aria-live="polite" hidden>Loading reports…</p>
 
       <div class="reports-grid">
 
         <!-- ---------- list ---------- -->
-        <section class="panel report-list-panel" id="reportListPanel">
+        <section class="panel report-list-panel">
           <div class="card-header">
             <h2>Past reports</h2>
-            <span class="header-hint" id="reportCount">—</span>
+            <span class="header-hint" id="reportCount">Loading…</span>
           </div>
-          <div class="report-list" id="reportList" aria-live="polite">
-            <p class="loading-state" id="reportListLoading">Loading reports…</p>
-            <p class="empty-state" id="reportListEmpty" hidden>No reports generated yet. To create a report, complete a scan, open its results from <a href="history.html">Scan History</a>, and click <strong>Create report</strong>.</p>
-          </div>
-          <div class="pagination" id="reportPagination" hidden>
-            <button type="button" class="page-btn" id="prevBtn" disabled>← Previous</button>
-            <span id="pageInfo">Page 1 of 1</span>
-            <button type="button" class="page-btn" id="nextBtn" disabled>Next →</button>
+          <p class="reports-loading" id="reportsLoading" role="status" aria-live="polite">Loading reports…</p>
+          <p class="reports-error" id="reportsError" role="alert" aria-live="assertive" hidden></p>
+          <a class="reports-list-link" id="reportsListLink" href="reports.html" hidden>Open reports list</a>
+          <p class="reports-empty" id="reportsEmpty" hidden>No reports yet. Open a completed scan in Results and create a report from there.</p>
+          <div class="report-list" id="reportList"></div>
+          <div class="report-pagination">
+            <button class="ghost-btn" id="reportsPrevious" type="button" disabled>Previous</button>
+            <span id="reportsPageInfo">Page 0 of 0</span>
+            <button class="ghost-btn" id="reportsNext" type="button" disabled>Next</button>
           </div>
         </section>
 
         <!-- ---------- document ---------- -->
-        <section class="panel report-doc" id="reportDoc">
-          <p class="empty-state" id="docPlaceholder">Select a report on the left to open it.</p>
+        <section class="panel report-doc" id="reportDoc" aria-live="polite">
+          <p class="empty-state">Select a report on the left to open it.</p>
         </section>
 
       </div>
@@ -88,10 +85,12 @@
 
   <div class="toast" id="toast"></div>
 
+  
+
   <script src="/static/js/config.js"></script>
   <script src="/static/js/api.js"></script>
   <script src="/static/js/auth.js"></script>
-  <script src="/static/js/scan_helpers.js"></script>
+  <script src="/static/js/report_helpers.js"></script>
   <script src="/static/js/reports.js"></script>
 </body>
 </html>

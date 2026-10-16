@@ -1,21 +1,27 @@
 (() => {
-	const helpers = typeof module !== "undefined" && typeof require !== "undefined"
-		? require("./scan_helpers.js")
-		: (globalThis.ScanHelpers || {});
+	const sharedHelpers = typeof module !== "undefined" && module.exports
+		? require("./report_helpers.js")
+		: globalThis.ReportHelpers;
+	const { SEVERITY_ORDER, getVerdictKey, getVerdictMessage, isSafeHttpUrl } = sharedHelpers;
+	const FINDING_STATUSES = Object.freeze(["open", "confirmed", "false_positive", "resolved"]);
+	const SCAN_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-	const {
-		FINDING_STATUSES,
-		SCAN_ID_PATTERN,
-		SEVERITY_ORDER,
-		VERDICT_MESSAGES,
-		formatTimestamp,
-		getSeverityCount,
-		getVerdictKey,
-		getVerdictMessage,
-		isSafeHttpUrl,
-		parseScanId,
-		severityClass
-	} = helpers;
+	function parseScanId(search) {
+		const value = new URLSearchParams(search || "").get("id");
+		return value && SCAN_ID_PATTERN.test(value) ? value : null;
+	}
+
+	function severityClass(severity) {
+		const normalized = String(severity || "info").toLowerCase();
+		return SEVERITY_ORDER.includes(normalized) ? `severity-${normalized}` : "severity-info";
+	}
+
+	function getSeverityCount(results, severity) {
+		const counts = results?.counts;
+		if (counts && Object.hasOwn(counts, severity)) return Math.max(0, Number(counts[severity]) || 0);
+		return (Array.isArray(results?.findings) ? results.findings : [])
+			.filter((finding) => String(finding?.severity || "").toLowerCase() === severity).length;
+	}
 
 	function filterFindings(findings, filters = {}) {
 		const severity = filters.severity || "all";
@@ -31,22 +37,18 @@
 		});
 	}
 
-	function canCreateReport(status) {
-		return String(status || "").toLowerCase() === "completed";
-	}
-
-	function getReportDestination(reportId) {
-		return `reports.html?id=${encodeURIComponent(reportId || "")}`;
+	function formatTimestamp(value) {
+		if (!value) return "Not available";
+		const date = new Date(value);
+		return Number.isNaN(date.getTime()) ? "Not available" : date.toLocaleString();
 	}
 
 	if (typeof module !== "undefined" && module.exports) {
 		module.exports = {
 			FINDING_STATUSES,
 			SEVERITY_ORDER,
-			canCreateReport,
 			filterFindings,
 			formatTimestamp,
-			getReportDestination,
 			getSeverityCount,
 			getVerdictKey,
 			getVerdictMessage,
@@ -68,13 +70,14 @@
 	const statusFilter = document.getElementById("statusFilter");
 	const findingSearch = document.getElementById("findingSearch");
 	const runAnotherScan = document.getElementById("runAnotherScan");
-	const createReportBtn = document.getElementById("createReportBtn");
 	const liveScanLink = document.getElementById("liveScanLink");
 	const scanStatusNote = document.getElementById("scanStatusNote");
+	const createReportButton = document.getElementById("createReportButton");
 	const savingFindings = new Set();
 	const findingMessages = new Map();
 	let scanResults = null;
 	let scanDetails = null;
+	let creatingReport = false;
 
 	function setText(node, value) {
 		node.textContent = value == null || value === "" ? "—" : String(value);
@@ -195,6 +198,7 @@
 		const findings = Array.isArray(results.findings) ? results.findings : [];
 		const verdictKey = getVerdictKey(results);
 		const status = String(results.status || details.status || "unknown").toLowerCase();
+		createReportButton.hidden = status !== "completed";
 		const isCompleted = status === "completed";
 		setText(document.getElementById("scoreValue"), results.score == null ? "—" : results.score);
 		setText(document.getElementById("verdict"), !isCompleted ? `Scan ${status}` : verdictKey === "scanner_error" ? "Checks incomplete" : `${verdictKey.charAt(0).toUpperCase()}${verdictKey.slice(1)} verdict`);
@@ -211,9 +215,6 @@
 		if (details.target_id) {
 			runAnotherScan.href = `new_scan.html?target=${encodeURIComponent(details.target_id)}`;
 			runAnotherScan.hidden = false;
-		}
-		if (createReportBtn) {
-			createReportBtn.hidden = !isCompleted;
 		}
 		if (status !== "completed") {
 			setText(scanStatusNote, `This scan is ${status}. ${details.error_message || "Results may be incomplete."}`);
@@ -272,28 +273,26 @@
 	}
 
 	async function createReport() {
-		if (!scanId || !createReportBtn || createReportBtn.disabled) return;
-		createReportBtn.disabled = true;
-		createReportBtn.textContent = "Creating report…";
+		if (creatingReport || createReportButton.hidden) return;
+		creatingReport = true;
+		createReportButton.disabled = true;
+		createReportButton.textContent = "Creating report…";
+		setText(pageError, "");
+		pageError.hidden = true;
 		try {
-			const report = await Api.post("/api/reports", {
-				scan_id: scanId,
-				report_format: "pdf"
-			});
-			if (report && report.id) {
-				globalThis.location.assign(getReportDestination(report.id));
-				return;
-			}
-			throw new Error("Report created but no report ID was returned.");
+			const report = await Api.post("/api/reports", { scan_id: scanId, report_format: "pdf" });
+			if (!report?.id) throw new Error("The server did not return a report ID.");
+			globalThis.location.assign(`reports.html?id=${encodeURIComponent(report.id)}`);
 		} catch (error) {
 			showError(error.message || "Could not create report.");
-			createReportBtn.disabled = false;
-			createReportBtn.textContent = "Create report";
+			createReportButton.disabled = false;
+			createReportButton.textContent = "Create report";
+			creatingReport = false;
 		}
 	}
 
-	createReportBtn?.addEventListener("click", createReport);
 	for (const filter of [severityFilter, moduleFilter, statusFilter]) filter.addEventListener("change", renderFindings);
+	createReportButton.addEventListener("click", createReport);
 	findingSearch.addEventListener("input", renderFindings);
 	findingList.addEventListener("change", (event) => {
 		if (event.target.matches(".finding-status-select")) updateFindingStatus(event.target);

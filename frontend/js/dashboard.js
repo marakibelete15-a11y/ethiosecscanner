@@ -1,14 +1,5 @@
 (() => {
-	const helpers = typeof module !== "undefined" && typeof require !== "undefined"
-		? require("./scan_helpers.js")
-		: (globalThis.ScanHelpers || {});
-
-	const SEVERITIES = helpers.SEVERITY_ORDER || Object.freeze(["critical", "high", "medium", "low", "info"]);
-	const formatDate = helpers.formatTimestamp || ((value) => {
-		if (!value) return "Not available";
-		const date = new Date(value);
-		return Number.isNaN(date.getTime()) ? "Not available" : date.toLocaleString();
-	});
+	const SEVERITIES = Object.freeze(["critical", "high", "medium", "low", "info"]);
 
 	function getBarWidth(value, maximum) {
 		const count = Math.max(0, Number(value) || 0);
@@ -17,47 +8,30 @@
 		return Math.min(100, Math.max(6, (count / max) * 100));
 	}
 
-	function getDashboardText(summary) {
-		const data = summary || {};
+	function getDashboardText(summary = {}) {
+		summary = summary && typeof summary === "object" ? summary : {};
 		return {
-			totalTargets: Math.max(0, Number(data.total_targets) || 0),
-			verifiedTargets: Math.max(0, Number(data.verified_targets) || 0),
-			totalScans: Math.max(0, Number(data.total_scans) || 0),
-			completedScans: Math.max(0, Number(data.completed_scans) || 0),
-			latestScore: data.latest_security_score == null ? "—" : String(data.latest_security_score)
+			totalTargets: Math.max(0, Number(summary.total_targets) || 0),
+			verifiedTargets: Math.max(0, Number(summary.verified_targets) || 0),
+			totalScans: Math.max(0, Number(summary.total_scans) || 0),
+			completedScans: Math.max(0, Number(summary.completed_scans) || 0),
+			latestScore: summary.latest_security_score == null ? "—" : String(summary.latest_security_score)
 		};
 	}
 
 	function getScanLink(scan) {
-		const status = String(scan?.status || "").toLowerCase();
-		const route = status === "queued" || status === "running" ? "live_scan.html" : "results.html";
+		const route = scan?.status === "queued" || scan?.status === "running" ? "live_scan.html" : "results.html";
 		return `${route}?id=${encodeURIComponent(scan?.id || "")}`;
 	}
 
-
-	function formatStatus(status) {
-		if (!status) return "Unknown";
-		const str = String(status).toLowerCase();
-		return str.charAt(0).toUpperCase() + str.slice(1);
-	}
-
-	function getStatusBadgeClass(status) {
-		const normalized = String(status || "unknown").toLowerCase();
-		return ["queued", "running", "completed", "failed", "cancelled"].includes(normalized)
-			? `status-${normalized}`
-			: "status-unknown";
+	function formatDate(value) {
+		if (!value) return "Not available";
+		const date = new Date(value);
+		return Number.isNaN(date.getTime()) ? "Not available" : date.toLocaleString();
 	}
 
 	if (typeof module !== "undefined" && module.exports) {
-		module.exports = {
-			SEVERITIES,
-			formatDate,
-			formatStatus,
-			getBarWidth,
-			getDashboardText,
-			getScanLink,
-			getStatusBadgeClass
-		};
+		module.exports = { SEVERITIES, formatDate, getBarWidth, getDashboardText, getScanLink };
 		return;
 	}
 
@@ -68,8 +42,7 @@
 	const empty = document.getElementById("dashboardEmpty");
 
 	function setText(id, value) {
-		const node = document.getElementById(id);
-		if (node) node.textContent = String(value);
+		document.getElementById(id).textContent = String(value);
 	}
 
 	function make(tag, className, text) {
@@ -100,25 +73,14 @@
 	function renderRecent(scans) {
 		const validScans = Array.isArray(scans) ? scans.slice(0, 5) : [];
 		empty.hidden = validScans.length > 0;
-		if (!validScans.length) {
-			recentScans.replaceChildren();
-			return;
-		}
 		const rows = validScans.map((scan) => {
 			const row = make("article", "recent-scan-row");
 			const details = make("div", "recent-scan-details");
 			details.append(make("strong", "recent-scan-target", scan.target_url || "Target URL unavailable"));
-			const scoreText = scan.security_score == null ? "—" : scan.security_score;
-			const timeAndScore = make(
-				"span",
-				"recent-scan-meta",
-				`${formatDate(scan.started_at || scan.created_at)} · Score ${scoreText}`
-			);
+			const timeAndScore = make("span", "recent-scan-meta", `${formatDate(scan.started_at)} · Score ${scan.security_score ?? "—"}`);
 			details.append(timeAndScore);
-			const normalizedStatus = String(scan.status || "unknown").toLowerCase();
-			const status = make("span", `dashboard-status ${getStatusBadgeClass(scan.status)}`, formatStatus(scan.status));
-			const isRunning = normalizedStatus === "queued" || normalizedStatus === "running";
-			const link = make("a", "recent-scan-link", isRunning ? "Open live scan" : "View results");
+			const status = make("span", `dashboard-status status-${String(scan.status || "unknown").toLowerCase()}`, scan.status || "Unknown");
+			const link = make("a", "recent-scan-link", scan.status === "queued" || scan.status === "running" ? "Open scan" : "View results");
 			link.href = getScanLink(scan);
 			row.append(details, status, link);
 			return row;

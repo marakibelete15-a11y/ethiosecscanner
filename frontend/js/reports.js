@@ -1,412 +1,291 @@
 (() => {
-	const helpers = typeof module !== "undefined" && typeof require !== "undefined"
-		? require("./scan_helpers.js")
-		: (globalThis.ScanHelpers || {});
-
-	const {
-		SEVERITY_ORDER,
-		formatTimestamp,
-		getSeverityCount,
-		getVerdictKey,
-		getVerdictMessage,
-		isSafeHttpUrl,
-		isValidUuid,
-		parseIdFromQuery,
-		severityClass
-	} = helpers;
-
 	const PAGE_SIZE = 10;
+	const { SEVERITY_ORDER, getVerdictKey, getVerdictMessage, isSafeHttpUrl } = globalThis.ReportHelpers;
+	const REPORT_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 	function parseReportId(search) {
-		return parseIdFromQuery(search, "id");
+		const value = new URLSearchParams(search || "").get("id");
+		return value && REPORT_ID_PATTERN.test(value) ? value : null;
 	}
 
-	function hasReportIdParam(search) {
-		return new URLSearchParams(search || "").has("id");
+	function getReportPageCount(total, pageSize = PAGE_SIZE) {
+		return Math.ceil(Math.max(0, Number(total) || 0) / Math.max(1, Number(pageSize) || PAGE_SIZE));
 	}
 
-	function getScoreClass(score) {
-		const num = Number(score);
-		if (Number.isNaN(num)) return "score-mid";
-		if (num >= 80) return "score-good";
-		if (num >= 50) return "score-mid";
-		return "score-bad";
+	function getReportPageState(total, page, pageSize = PAGE_SIZE) {
+		const pageCount = getReportPageCount(total, pageSize);
+		const currentPage = pageCount ? Math.min(Math.max(1, Number(page) || 1), pageCount) : 1;
+		return { page: currentPage, pageCount, canPrevious: currentPage > 1, canNext: currentPage < pageCount };
 	}
 
-	function getReportPageBounds(total, page, pageSize = PAGE_SIZE) {
-		const totalItems = Math.max(0, Number(total) || 0);
-		const size = Math.max(1, Number(pageSize) || 10);
-		const pageCount = Math.max(1, Math.ceil(totalItems / size));
-		const currentPage = Math.min(Math.max(1, Number(page) || 1), pageCount);
-		const canPrevious = currentPage > 1;
-		const canNext = currentPage < pageCount;
+	function getReportSummaryValues(report) {
+		const summary = report?.summary || {};
+		const moduleSummary = summary.module_summary && typeof summary.module_summary === "object" ? summary.module_summary : {};
+		const passedFromModules = Object.values(moduleSummary).reduce((total, item) => total + (Number(item?.checks_passed) || 0), 0);
 		return {
-			page: currentPage,
-			pageCount,
-			total: totalItems,
-			canPrevious,
-			canNext
+			target: summary.target_url || "Target URL unavailable",
+			depth: summary.depth || "Not available",
+			score: summary.security_score ?? "Not scored",
+			verdict: getVerdictKey({
+				verdict: summary.verdict,
+				counts: summary.counts,
+				scanner_error_count: summary.scanner_error_count
+			}),
+			counts: Object.fromEntries(SEVERITY_ORDER.map((severity) => [severity, Math.max(0, Number(summary.counts?.[severity]) || 0)])),
+			passedCount: summary.passed_count == null ? passedFromModules : Math.max(0, Number(summary.passed_count) || 0),
+			scannerErrorCount: Math.max(0, Number(summary.scanner_error_count) || 0),
+			moduleSummary
 		};
 	}
 
-	function getModuleRows(report) {
-		const summary = report?.summary || report || {};
-		const raw = summary.modules || summary.module_progress || summary.per_module || summary.module_data || [];
-		if (Array.isArray(raw)) {
-			return raw.map((item) => ({
-				module: item.module || item.name || "unknown",
-				status: item.status || "completed",
-				checksRun: Number(item.checks_run ?? item.checksRun ?? 0),
-				checksPassed: Number(item.checks_passed ?? item.checksPassed ?? 0),
-				findingsCount: Number(item.findings_count ?? item.findingsCount ?? item.count ?? 0)
-			}));
-		}
-		if (raw && typeof raw === "object") {
-			return Object.entries(raw).map(([key, item]) => ({
-				module: key,
-				status: item?.status || "completed",
-				checksRun: Number(item?.checks_run ?? item?.checksRun ?? 0),
-				checksPassed: Number(item?.checks_passed ?? item?.checksPassed ?? 0),
-				findingsCount: Number(item?.findings_count ?? item?.findingsCount ?? item?.count ?? 0)
-			}));
-		}
-		return [];
-	}
-
-	function formatFindingMeta(finding) {
-		const parts = [];
-		if (finding?.owasp_category) parts.push(`OWASP: ${finding.owasp_category}`);
-		if (finding?.cwe_id) parts.push(`CWE: ${finding.cwe_id}`);
-		return parts.join(" · ");
+	function formatTimestamp(value) {
+		if (!value) return "Not available";
+		const date = new Date(value);
+		return Number.isNaN(date.getTime()) ? "Not available" : date.toLocaleString();
 	}
 
 	if (typeof module !== "undefined" && module.exports) {
-		module.exports = {
-			PAGE_SIZE,
-			formatFindingMeta,
-			getModuleRows,
-			getReportPageBounds,
-			getScoreClass,
-			hasReportIdParam,
-			parseReportId
-		};
+		module.exports = { PAGE_SIZE, formatTimestamp, getReportPageCount, getReportPageState, getReportSummaryValues, parseReportId };
 		return;
 	}
 
-	const reportList = document.getElementById("reportList");
-	const reportListLoading = document.getElementById("reportListLoading");
-	const reportListEmpty = document.getElementById("reportListEmpty");
-	const reportCount = document.getElementById("reportCount");
-	const reportPagination = document.getElementById("reportPagination");
-	const prevBtn = document.getElementById("prevBtn");
-	const nextBtn = document.getElementById("nextBtn");
-	const pageInfo = document.getElementById("pageInfo");
-	const reportDoc = document.getElementById("reportDoc");
-	const pageError = document.getElementById("pageError");
-	const pageLoading = document.getElementById("pageLoading");
+	const list = document.getElementById("reportList");
+	const documentPanel = document.getElementById("reportDoc");
+	const listLoading = document.getElementById("reportsLoading");
+	const listError = document.getElementById("reportsError");
+	const listLink = document.getElementById("reportsListLink");
+	const listEmpty = document.getElementById("reportsEmpty");
+	const countLabel = document.getElementById("reportCount");
+	const previousButton = document.getElementById("reportsPrevious");
+	const nextButton = document.getElementById("reportsNext");
+	const pageInfo = document.getElementById("reportsPageInfo");
+	let page = 1;
+	let total = 0;
+	let reports = [];
+	let selectedReportId = null;
+	let loadingList = false;
 
-	let currentPage = 1;
-	let currentReportId = parseReportId(globalThis.location.search);
-
-	function textElement(tag, className, text) {
+	function make(tag, className, text) {
 		const node = document.createElement(tag);
 		if (className) node.className = className;
 		if (text !== undefined) node.textContent = text == null || text === "" ? "—" : String(text);
 		return node;
 	}
 
-	function showError(message) {
-		if (pageError) {
-			pageError.textContent = message;
-			pageError.hidden = false;
-		}
+	function setListError(message) {
+		listError.textContent = message || "";
+		listError.hidden = !message;
 	}
 
-	function renderReportError(message) {
-		reportDoc.replaceChildren();
-		const box = textElement("div", "report-error-box");
-		box.append(textElement("h3", "", "Report Error"));
-		box.append(textElement("p", "", message));
-		const link = textElement("a", "primary-btn", "Back to reports list");
-		link.href = "reports.html";
-		box.append(link);
-		reportDoc.append(box);
+	function appendLabeled(parent, label, value) {
+		const item = make("div", "report-meta-item");
+		item.append(make("strong", "", `${label}: `), document.createTextNode(value == null || value === "" ? "—" : String(value)));
+		parent.append(item);
 	}
 
-	function renderReportDocument(report) {
-		reportDoc.replaceChildren();
-		const summary = report?.summary || {};
-		const findings = Array.isArray(report?.findings) ? report.findings : [];
-		const targetUrl = summary.target_url || summary.target || "Target URL unavailable";
-		const score = summary.score ?? summary.security_score ?? "—";
-		const verdictKey = getVerdictKey(summary);
-		const passedCount = Number(summary.passed_count ?? summary.checks_passed ?? 0);
-		const scannerErrorCount = Number(summary.scanner_error_count ?? summary.scanner_errors ?? 0);
-
-		// Header
-		const head = textElement("div", "doc-head");
-		const titleBlock = textElement("div", "doc-title-block");
-		titleBlock.append(textElement("h2", "", "Security Assessment Report"));
-		titleBlock.append(textElement("p", "", targetUrl));
-
-		const actions = textElement("div", "doc-actions");
-		const printBtn = textElement("button", "primary-btn", "Export PDF");
-		printBtn.type = "button";
-		printBtn.id = "exportPdfBtn";
-		printBtn.addEventListener("click", () => globalThis.print());
-
-		const allReportsLink = textElement("a", "ghost-btn", "← All reports");
-		allReportsLink.href = "reports.html";
-
-		actions.append(printBtn, allReportsLink);
-		head.append(titleBlock, actions);
-		reportDoc.append(head);
-
-		// Executive Summary
-		const execSection = textElement("div", "doc-section");
-		execSection.append(textElement("h3", "", "Executive Summary"));
-		const execSummary = textElement("div", "exec-summary");
-		execSummary.append(
-			textElement("h4", "", `${verdictKey.toUpperCase()} VERDICT`),
-			textElement("p", "", getVerdictMessage(verdictKey, passedCount))
-		);
-		execSection.append(execSummary);
-		reportDoc.append(execSection);
-
-		// Score & Severity Strip
-		const scoreSection = textElement("div", "doc-section");
-		scoreSection.append(textElement("h3", "", "Score & Severity Breakdown"));
-		const strip = textElement("div", "score-strip");
-
-		function addTile(value, label, className = "") {
-			const tile = textElement("div", `score-tile ${className}`.trim());
-			tile.append(textElement("b", "", value));
-			tile.append(textElement("span", "", label));
-			strip.append(tile);
-		}
-
-		addTile(score, "Score", getScoreClass(score));
-		for (const sev of SEVERITY_ORDER) {
-			addTile(getSeverityCount(summary, sev), sev, severityClass(sev));
-		}
-		addTile(passedCount, "Passed");
-		addTile(scannerErrorCount, "Errors");
-		scoreSection.append(strip);
-		reportDoc.append(scoreSection);
-
-		// Assessment Details Table
-		const metaSection = textElement("div", "doc-section");
-		metaSection.append(textElement("h3", "", "Assessment Details"));
-		const metaTable = textElement("table", "tech-table");
-		const tbody = document.createElement("tbody");
-
-		function addMetaRow(label, value) {
-			const tr = document.createElement("tr");
-			tr.append(textElement("td", "", label));
-			tr.append(textElement("td", "", value));
-			tbody.append(tr);
-		}
-
-		addMetaRow("Target URL", targetUrl);
-		addMetaRow("Report ID", report.id);
-		addMetaRow("Scan ID", report.scan_id || summary.scan_id || "—");
-		addMetaRow("Scan Depth", summary.depth || "standard");
-		addMetaRow("Scan Started", formatTimestamp(summary.started_at || summary.created_at));
-		addMetaRow("Scan Finished", formatTimestamp(summary.finished_at));
-		addMetaRow("Report Generated", formatTimestamp(report.created_at));
-		metaTable.append(tbody);
-		metaSection.append(metaTable);
-		reportDoc.append(metaSection);
-
-		// Module Execution Summary Table
-		const moduleRows = getModuleRows(report);
-		if (moduleRows.length > 0) {
-			const moduleSection = textElement("div", "doc-section");
-			moduleSection.append(textElement("h3", "", "Module Execution Summary"));
-			const modTable = textElement("table", "module-table");
-			const thead = document.createElement("thead");
-			const htr = document.createElement("tr");
-			htr.append(
-				textElement("th", "", "Module"),
-				textElement("th", "", "Status"),
-				textElement("th", "", "Checks Run"),
-				textElement("th", "", "Checks Passed"),
-				textElement("th", "", "Findings")
-			);
-			thead.append(htr);
-			const mtbody = document.createElement("tbody");
-			for (const m of moduleRows) {
-				const tr = document.createElement("tr");
-				tr.append(
-					textElement("td", "module-name", m.module),
-					textElement("td", "module-status", m.status),
-					textElement("td", "", m.checksRun),
-					textElement("td", "", m.checksPassed),
-					textElement("td", "", m.findingsCount)
-				);
-				mtbody.append(tr);
-			}
-			modTable.append(thead, mtbody);
-			moduleSection.append(modTable);
-			reportDoc.append(moduleSection);
-		}
-
-		// Vulnerability Findings (in API order)
-		const findingsSection = textElement("div", "doc-section");
-		findingsSection.append(textElement("h3", "", `Vulnerability Findings (${findings.length})`));
-		if (findings.length === 0) {
-			findingsSection.append(textElement("p", "empty-state", "No findings were reported for this assessment."));
-		} else {
-			for (const finding of findings) {
-				const sev = String(finding.severity || "info").toLowerCase();
-				const card = textElement("article", `fix-item ${sev}`);
-
-				const fHead = textElement("div", "fix-head");
-				const printSev = textElement("span", "print-severity", `[${sev.toUpperCase()}] `);
-				const badge = textElement("span", `severity-badge ${severityClass(sev)}`, sev);
-				const title = textElement("strong", "", finding.title);
-				fHead.append(printSev, badge, title);
-				card.append(fHead);
-
-				const meta = textElement("div", "finding-meta");
-				if (finding.owasp_category) meta.append(textElement("span", "", `OWASP: ${finding.owasp_category}`));
-				if (finding.cwe_id) meta.append(textElement("span", "", `CWE: ${finding.cwe_id}`));
-				if (finding.affected_url) {
-					const urlSpan = textElement("span", "finding-url");
-					urlSpan.append(document.createTextNode("URL: "));
-					if (isSafeHttpUrl(finding.affected_url)) {
-						const link = textElement("a", "", finding.affected_url);
-						link.href = finding.affected_url;
-						link.target = "_blank";
-						link.rel = "noopener noreferrer";
-						urlSpan.append(link);
-					} else {
-						urlSpan.append(document.createTextNode(finding.affected_url));
-					}
-					meta.append(urlSpan);
-				}
-				card.append(meta);
-
-				if (finding.description) {
-					card.append(textElement("h4", "", "Description"));
-					card.append(textElement("p", "", finding.description));
-				}
-				if (finding.evidence) {
-					card.append(textElement("h4", "", "Evidence"));
-					card.append(textElement("pre", "finding-evidence", finding.evidence));
-				}
-				if (finding.remediation) {
-					card.append(textElement("h4", "", "Remediation"));
-					card.append(textElement("p", "", finding.remediation));
-				}
-				findingsSection.append(card);
-			}
-		}
-		reportDoc.append(findingsSection);
+	function createReportItem(report) {
+		const button = make("button", `report-item${report.id === selectedReportId ? " active" : ""}`);
+		button.type = "button";
+		button.dataset.reportId = report.id || "";
+		const summary = report.summary || {};
+		const main = make("span", "report-item-main");
+		main.append(make("strong", "report-host", summary.target_url || "Target URL unavailable"));
+		main.append(make("span", "report-when", formatTimestamp(summary.scan_dates?.started_at || report.created_at)));
+		const score = make("span", "report-score", summary.security_score == null ? "—" : summary.security_score);
+		const verdict = getVerdictKey({ verdict: summary.verdict, counts: summary.counts, scanner_error_count: summary.scanner_error_count });
+		button.append(main, score, make("span", `report-verdict verdict-${verdict}`, verdict.replaceAll("_", " ")));
+		return button;
 	}
 
-	async function loadSingleReport(id) {
-		if (pageLoading) pageLoading.hidden = false;
-		try {
-			const report = await Api.get(`/api/reports/${encodeURIComponent(id)}`);
-			renderReportDocument(report);
-		} catch (error) {
-			const message = error.status === 404 ? "Report not found." : (error.message || "Could not load report.");
-			renderReportError(message);
-		} finally {
-			if (pageLoading) pageLoading.hidden = true;
-		}
+	function updatePagination() {
+		const state = getReportPageState(total, page, PAGE_SIZE);
+		page = state.page;
+		pageInfo.textContent = `Page ${state.pageCount ? state.page : 0} of ${state.pageCount}`;
+		countLabel.textContent = `${total} report${total === 1 ? "" : "s"}`;
+		previousButton.disabled = loadingList || !state.canPrevious;
+		nextButton.disabled = loadingList || !state.canNext;
 	}
 
-	function renderReportsList(reports, total) {
-		const items = Array.isArray(reports) ? reports : [];
-		reportList.replaceChildren();
-
-		if (!items.length) {
-			if (reportListEmpty) reportListEmpty.hidden = false;
-			if (reportPagination) reportPagination.hidden = true;
-			if (reportCount) reportCount.textContent = "0 reports";
-			return;
-		}
-
-		if (reportListEmpty) reportListEmpty.hidden = true;
-		if (reportCount) reportCount.textContent = `${total} ${total === 1 ? "report" : "reports"}`;
-
-		for (const report of items) {
-			const summary = report.summary || {};
-			const card = textElement("article", "report-item");
-			if (report.id === currentReportId) card.classList.add("active");
-
-			const main = textElement("div", "report-item-main");
-			const host = textElement("div", "report-host", summary.target_url || summary.target || "Target URL unavailable");
-			const date = formatTimestamp(summary.started_at || summary.created_at || report.created_at);
-			const verdict = summary.verdict || getVerdictKey(summary);
-			const when = textElement("div", "report-when", `${date} · ${verdict} verdict`);
-			const link = textElement("a", "report-open-link", "Open report →");
-			link.href = `reports.html?id=${encodeURIComponent(report.id)}`;
-			main.append(host, when, link);
-
-			const scoreValue = summary.score ?? summary.security_score ?? "—";
-			const scoreBadge = textElement("div", `report-score ${getScoreClass(scoreValue)}`, scoreValue);
-
-			card.append(main, scoreBadge);
-			card.addEventListener("click", (event) => {
-				if (event.target !== link) {
-					globalThis.location.assign(`reports.html?id=${encodeURIComponent(report.id)}`);
-				}
-			});
-			reportList.append(card);
-		}
-
-		const bounds = getReportPageBounds(total, currentPage, PAGE_SIZE);
-		if (pageInfo) pageInfo.textContent = `Page ${bounds.page} of ${bounds.pageCount}`;
-		if (prevBtn) prevBtn.disabled = !bounds.canPrevious;
-		if (nextBtn) nextBtn.disabled = !bounds.canNext;
-		if (reportPagination) reportPagination.hidden = bounds.pageCount <= 1;
-	}
-
-	async function loadReportsList(page = 1) {
-		if (reportListLoading) reportListLoading.hidden = false;
-		if (prevBtn) prevBtn.disabled = true;
-		if (nextBtn) nextBtn.disabled = true;
-
+	async function loadReportList() {
+		if (loadingList) return;
+		loadingList = true;
+		listLoading.hidden = false;
+		listEmpty.hidden = true;
+		setListError("");
+		updatePagination();
 		try {
 			const response = await Api.get(`/api/reports?page=${page}&page_size=${PAGE_SIZE}`);
-			currentPage = page;
-			renderReportsList(response?.reports || [], response?.total || 0);
+			total = Math.max(0, Number(response?.total) || 0);
+			reports = Array.isArray(response?.reports) ? response.reports : [];
+			const state = getReportPageState(total, page, PAGE_SIZE);
+			if (total > 0 && state.page !== page) {
+				page = state.page;
+				loadingList = false;
+				return loadReportList();
+			}
+			list.replaceChildren(...reports.map(createReportItem));
+			listEmpty.hidden = total !== 0;
+			if (selectedReportId && !reports.some((report) => report.id === selectedReportId) && !new URLSearchParams(globalThis.location.search).has("id")) {
+				selectedReportId = null;
+				documentPanel.replaceChildren(make("p", "empty-state", "Select a report on the left to open it."));
+			}
 		} catch (error) {
-			showError(error.message || "Could not load reports list.");
+			reports = [];
+			list.replaceChildren();
+			setListError(error.message || "Could not load reports.");
 		} finally {
-			if (reportListLoading) reportListLoading.hidden = true;
+			loadingList = false;
+			listLoading.hidden = true;
+			updatePagination();
 		}
 	}
 
-	prevBtn?.addEventListener("click", () => {
-		if (currentPage > 1) loadReportsList(currentPage - 1);
+	function safeUrlNode(value) {
+		if (!isSafeHttpUrl(value)) return document.createTextNode(value == null || value === "" ? "—" : String(value));
+		const link = make("a", "report-safe-url", value);
+		link.href = value;
+		link.target = "_blank";
+		link.rel = "noopener noreferrer";
+		return link;
+	}
+
+	function renderReport(report) {
+		const values = getReportSummaryValues(report);
+		const summary = report.summary || {};
+		const root = make("div", "report-document-content");
+		const head = make("header", "doc-head");
+		const title = make("div", "report-title-block");
+		title.append(make("h2", "", "Security assessment report"));
+		title.append(make("p", "report-target-url", values.target));
+		title.lastChild.replaceChildren(safeUrlNode(values.target));
+		title.append(make("p", "", `Started ${formatTimestamp(summary.scan_dates?.started_at)} · Finished ${formatTimestamp(summary.scan_dates?.finished_at)}`));
+		const actions = make("div", "doc-actions");
+		const printButton = make("button", "primary-btn", "Export PDF");
+		printButton.type = "button";
+		printButton.addEventListener("click", () => globalThis.print());
+		actions.append(printButton);
+		head.append(title, actions);
+		root.append(head);
+
+		const verdictKey = values.verdict;
+		const verdict = make("section", "doc-section report-verdict-block");
+		verdict.append(make("h3", "", `${verdictKey.replaceAll("_", " ")} verdict`));
+		verdict.append(make("p", "exec-summary", getVerdictMessage(verdictKey, values.passedCount)));
+		if (values.scannerErrorCount > 0) verdict.append(make("p", "report-error-note", "Some checks could not run."));
+		root.append(verdict);
+
+		const summarySection = make("section", "doc-section");
+		summarySection.append(make("h3", "", "Scan summary"));
+		const tiles = make("div", "score-strip");
+		for (const [label, value] of [["Score", values.score], ["Depth", values.depth], ["Passed", values.passedCount], ["Scanner errors", values.scannerErrorCount]]) {
+			const tile = make("div", "score-tile");
+			tile.append(make("b", "", value), make("span", "", label));
+			tiles.append(tile);
+		}
+		summarySection.append(tiles);
+		const counts = make("div", "score-strip report-severity-counts");
+		for (const severity of SEVERITY_ORDER) {
+			const tile = make("div", `score-tile severity-${severity}`);
+			tile.append(make("b", "", values.counts[severity]), make("span", "", severity));
+			counts.append(tile);
+		}
+		summarySection.append(counts);
+		root.append(summarySection);
+
+		const moduleSection = make("section", "doc-section");
+		moduleSection.append(make("h3", "", "Module execution"));
+		const table = make("table", "tech-table module-summary-table");
+		const header = make("tr", "");
+		for (const label of ["Module", "Status", "Checks run", "Checks passed", "Findings"]) header.append(make("th", "", label));
+		const thead = make("thead", "");
+		thead.append(header);
+		const tbody = make("tbody", "");
+		for (const [name, module] of Object.entries(values.moduleSummary)) {
+			const row = make("tr", "");
+			for (const value of [name.replaceAll("_", " "), module?.status || "pending", Number(module?.checks_run) || 0, Number(module?.checks_passed) || 0, Number(module?.findings_count) || 0]) row.append(make("td", "", value));
+			tbody.append(row);
+		}
+		if (!tbody.childElementCount) {
+			const row = make("tr", "");
+			const cell = make("td", "", "Module details are unavailable.");
+			cell.colSpan = 5;
+			row.append(cell);
+			tbody.append(row);
+		}
+		table.append(thead, tbody);
+		moduleSection.append(table);
+		root.append(moduleSection);
+
+		const findingsSection = make("section", "doc-section report-findings");
+		findingsSection.append(make("h3", "", `Findings (${Array.isArray(report.findings) ? report.findings.length : 0})`));
+		const findings = Array.isArray(report.findings) ? report.findings : [];
+		if (!findings.length) findingsSection.append(make("p", "empty-state", "This report contains no findings."));
+		for (const finding of findings) {
+			const item = make("article", `fix-item ${String(finding.severity || "info").toLowerCase()}`);
+			const heading = make("div", "fix-head");
+			heading.append(make("span", `sev-badge sev-${String(finding.severity || "info").toLowerCase()}`, finding.severity || "Info"));
+			heading.append(make("strong", "", finding.title || "Untitled finding"));
+			item.append(heading);
+			const metadata = make("div", "report-finding-meta");
+			metadata.append(safeUrlNode(finding.affected_url));
+			appendLabeled(metadata, "OWASP", finding.owasp_category);
+			appendLabeled(metadata, "CWE", finding.cwe_id);
+			item.append(metadata);
+			item.append(make("p", "", finding.description));
+			item.append(make("h4", "", "Evidence"), make("pre", "report-evidence", finding.evidence));
+			item.append(make("h4", "", "Remediation"), make("p", "", finding.remediation));
+			findingsSection.append(item);
+		}
+		root.append(findingsSection);
+		documentPanel.replaceChildren(root);
+	}
+
+	async function openReport(reportId) {
+		selectedReportId = reportId;
+		list.replaceChildren(...reports.map(createReportItem));
+		documentPanel.replaceChildren(make("p", "reports-loading", "Loading report details…"));
+		try {
+			const report = await Api.get(`/api/reports/${encodeURIComponent(reportId)}`);
+			if (report?.id !== selectedReportId) return;
+			renderReport(report || {});
+		} catch (error) {
+			documentPanel.replaceChildren(make("p", "reports-error", error?.status === 404 ? "Report not found." : (error.message || "Could not load report details.")));
+		}
+	}
+
+	list.addEventListener("click", (event) => {
+		const button = event.target.closest("button[data-report-id]");
+		if (button?.dataset.reportId) openReport(button.dataset.reportId);
+	});
+	previousButton.addEventListener("click", () => {
+		if (loadingList || page <= 1) return;
+		page -= 1;
+		loadReportList();
+	});
+	nextButton.addEventListener("click", () => {
+		if (loadingList || page >= getReportPageCount(total, PAGE_SIZE)) return;
+		page += 1;
+		loadReportList();
+	});
+	document.getElementById("sidebarToggle").addEventListener("click", () => {
+		document.getElementById("sidebar").classList.toggle("open");
+		document.getElementById("sidebarOverlay").classList.toggle("show");
+	});
+	document.getElementById("sidebarOverlay").addEventListener("click", () => {
+		document.getElementById("sidebar").classList.remove("open");
+		document.getElementById("sidebarOverlay").classList.remove("show");
 	});
 
-	nextBtn?.addEventListener("click", () => {
-		loadReportsList(currentPage + 1);
-	});
-
-	document.getElementById("sidebarToggle")?.addEventListener("click", () => {
-		document.getElementById("sidebar")?.classList.toggle("open");
-		document.getElementById("sidebarOverlay")?.classList.toggle("show");
-	});
-	document.getElementById("sidebarOverlay")?.addEventListener("click", () => {
-		document.getElementById("sidebar")?.classList.remove("open");
-		document.getElementById("sidebarOverlay")?.classList.remove("show");
-	});
-
+	const requestedId = parseReportId(globalThis.location.search);
+	const hasIdParameter = new URLSearchParams(globalThis.location.search).has("id");
 	Auth.requireAuth().then((user) => {
 		if (!user) return;
-		loadReportsList(currentPage);
-		if (hasReportIdParam(globalThis.location.search)) {
-			if (!currentReportId) {
-				renderReportError("Invalid report ID format. Choose a report from the list.");
-			} else {
-				loadSingleReport(currentReportId);
-			}
+		if (hasIdParameter && !requestedId) {
+			setListError("A valid report ID is required. Select a report from the list.");
+			listLink.hidden = false;
 		}
+		loadReportList().then(() => {
+			if (requestedId) openReport(requestedId);
+		});
 	});
 })();

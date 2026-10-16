@@ -8,6 +8,7 @@
     <title>Dashboard - EthioSecScan</title>
     <link rel="stylesheet" href="/static/css/global.css">
     <link rel="stylesheet" href="/static/css/dashboard.css">
+    <link rel="stylesheet" href="/static/css/dashboard_page.css">
 </head>
 <body>
 
@@ -81,7 +82,7 @@
                 </section>
                 <section class="dashboard-panel" aria-labelledby="recentHeading">
                     <div class="card-header"><h2 id="recentHeading">Recent scans</h2><a class="view-all" href="history.html">View history</a></div>
-                    <p class="dashboard-empty" id="dashboardEmpty" hidden>No scans yet. <a href="target_verify.html">Add and verify a target</a>, then <a href="new_scan.html">start your first scan</a>.</p>
+                    <p class="dashboard-empty" id="dashboardEmpty" hidden>No scans yet. Verify a target at <a href="target_verify.html">Target verification</a>, then <a href="new_scan.html">start your first scan</a>.</p>
                     <div class="recent-scan-list" id="recentScans"></div>
                 </section>
             </div>
@@ -93,7 +94,6 @@
     <script src="/static/js/config.js"></script>
     <script src="/static/js/api.js"></script>
     <script src="/static/js/auth.js"></script>
-    <script src="/static/js/scan_helpers.js"></script>
     <script src="/static/js/dashboard.js"></script>
 </body>
 </html>
