@@ -6,21 +6,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Reports - EthioSecScan</title>
-  <link rel="stylesheet" href="../css/global.css">
-  <link rel="stylesheet" href="../css/reports.css">
-  <style>
-    /* Print styling for clean offline PDF exports */
-    @media print {
-      body { background: #ffffff !important; color: #000000 !important; }
-      .sidebar, .sidebar-toggle, .sidebar-overlay, .dashboard-bg, .report-list-panel, .doc-actions, .toast { display: none !important; }
-      .layout { display: block !important; }
-      .page-container { margin: 0 !important; padding: 0 !important; max-width: 100% !important; }
-      .reports-grid { display: block !important; }
-      .report-doc { border: none !important; background: transparent !important; box-shadow: none !important; padding: 0 !important; color: #000000 !important; }
-      .report-doc * { color: #000000 !important; }
-      .score-strip .score-tile { border: 1px solid #ccc !important; }
-    }
-  </style>
+  <link rel="stylesheet" href="/static/css/global.css">
+  <link rel="stylesheet" href="/static/css/reports.css">
 </head>
 <body>
 
@@ -55,32 +42,43 @@
     </aside>
 
     <!-- ============ MAIN CONTENT ============ -->
-    <main class="page-container">
+    <main class="page-container reports-page">
 
       <div class="page-header">
         <div class="header-content">
-          <h1>Reports</h1>
-          <p>Formal, shareable version of every completed scan</p>
+          <h1>Security Reports</h1>
+          <p id="reportsHeaderSubtitle">Formal, shareable version of every completed scan</p>
         </div>
-        <a href="new_scan.html" class="primary-btn">🔍 New scan</a>
+        <div class="header-actions">
+          <a href="new_scan.html" class="primary-btn">🔍 New scan</a>
+        </div>
       </div>
+
+      <p class="reports-error" id="pageError" role="alert" aria-live="assertive" hidden></p>
+      <p class="reports-loading" id="pageLoading" role="status" aria-live="polite" hidden>Loading reports…</p>
 
       <div class="reports-grid">
 
         <!-- ---------- list ---------- -->
-        <section class="panel report-list-panel">
+        <section class="panel report-list-panel" id="reportListPanel">
           <div class="card-header">
             <h2>Past reports</h2>
-            <span class="header-hint" id="reportCount">—<!-- DATA: count filled by reports.js --></span>
+            <span class="header-hint" id="reportCount">—</span>
           </div>
-          <div class="report-list" id="reportList"><!-- DATA: reports list filled by reports.js -->
-            <p class="loading-state">Loading reports…</p>
+          <div class="report-list" id="reportList" aria-live="polite">
+            <p class="loading-state" id="reportListLoading">Loading reports…</p>
+            <p class="empty-state" id="reportListEmpty" hidden>No reports generated yet. To create a report, complete a scan, open its results from <a href="history.html">Scan History</a>, and click <strong>Create report</strong>.</p>
+          </div>
+          <div class="pagination" id="reportPagination" hidden>
+            <button type="button" class="page-btn" id="prevBtn" disabled>← Previous</button>
+            <span id="pageInfo">Page 1 of 1</span>
+            <button type="button" class="page-btn" id="nextBtn" disabled>Next →</button>
           </div>
         </section>
 
         <!-- ---------- document ---------- -->
-        <section class="panel report-doc" id="reportDoc"><!-- DATA: assessment report doc rendered by reports.js -->
-          <p class="empty-state">Select a report on the left to open it.</p>
+        <section class="panel report-doc" id="reportDoc">
+          <p class="empty-state" id="docPlaceholder">Select a report on the left to open it.</p>
         </section>
 
       </div>
@@ -90,12 +88,11 @@
 
   <div class="toast" id="toast"></div>
 
-  
-
-  <script src="../js/config.js"></script>
-  <script src="../js/api.js"></script>
-  <script src="../js/auth.js"></script>
-  <script src="../js/reports.js"></script>
+  <script src="/static/js/config.js"></script>
+  <script src="/static/js/api.js"></script>
+  <script src="/static/js/auth.js"></script>
+  <script src="/static/js/scan_helpers.js"></script>
+  <script src="/static/js/reports.js"></script>
 </body>
 </html>
 

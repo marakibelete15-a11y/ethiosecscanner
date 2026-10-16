@@ -81,3 +81,15 @@ Run the API and serve the frontend from the same origin, then open the URLs list
 - [ ] Confirm recent scans display up to 5 scans with target URL, status badge, score, and started time. Confirm queued/running scans link to `live_scan.html?id=<id>` and completed/failed/cancelled scans link to `results.html?id=<id>`.
 - [ ] Confirm API errors show the server's message visibly, and the dashboard remains fully usable at phone widths without layout breakages.
 - [ ] Confirm no inline scripts, inline event handlers, `innerHTML`, or external scripts are used on this page.
+
+## Assessment Reports (`/static/pages/reports.html`)
+
+- [ ] Open `/static/pages/reports.html` while signed in. Confirm the page requests `GET /api/reports?page=1&page_size=10` and renders past reports newest first with target URL, scan date, score badge, verdict, and link to open.
+- [ ] When no reports exist, confirm the friendly empty state explaining how to create a report from a completed scan with a link to Scan History.
+- [ ] Page forward and backward using Previous/Next buttons; confirm buttons disable on boundaries and while requests are running.
+- [ ] Open a report via `reports.html?id=<valid-id>`. Confirm `GET /api/reports/{id}` loads target URL, scan dates, depth, score, verdict message, severity breakdown (Critical first, High, Medium, Low, Info, Passed, Errors).
+- [ ] Confirm the per-module summary table displays module name, status, checks run, checks passed, and findings count.
+- [ ] Confirm findings are rendered in API order with title, severity, safe affected URL link (`target="_blank" rel="noopener noreferrer"`), OWASP and CWE tags, description, evidence in `<pre>`, and remediation.
+- [ ] Open a report with a malformed ID and confirm an invalid ID error plus a link to the reports list. Open a syntactically valid nonexistent UUID or another user's report ID; confirm the same "Report not found." message and link.
+- [ ] Click Export PDF and confirm `window.print()` is triggered. Confirm `@media print` styles hide navigation, sidebar, and buttons, render black on white, keep findings expanded without page breaks inside findings, and display severity as text.
+- [ ] Confirm the page remains responsive and usable at phone width, and uses no inline scripts, inline event handlers, `innerHTML`, or external scripts.
