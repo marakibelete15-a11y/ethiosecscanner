@@ -6,8 +6,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Settings - EthioSecScan</title>
-  <link rel="stylesheet" href="../css/global.css">
-  <link rel="stylesheet" href="../css/settings.css">
+  <link rel="stylesheet" href="/static/css/global.css">
+  <link rel="stylesheet" href="/static/css/settings.css">
 </head>
 <body>
 
@@ -54,11 +54,11 @@
       </div>
 
       <div class="settings-tabs" id="settingsTabs">
-        <button class=\"tab-btn active\" data-action=\"switch-tab\" data-section="profile" type="button"><span>👤</span> Profile</button>
-        <button class=\"tab-btn\" data-action=\"switch-tab\" data-section="security" type="button"><span>🔐</span> Security</button>
-        <button class=\"tab-btn\" data-action=\"switch-tab\" data-section="scanning" type="button"><span>🔍</span> Scan Defaults</button>
-        <button class=\"tab-btn\" data-action=\"switch-tab\" data-section="preferences" type="button"><span>🎨</span> Preferences</button>
-        <button class=\"tab-btn\" data-action=\"switch-tab\" data-section="notifications" type="button"><span>🔔</span> Notifications</button>
+        <button class="tab-btn active" data-action="switch-tab" data-section="profile" type="button"><span>👤</span> Profile</button>
+        <button class="tab-btn" data-action="switch-tab" data-section="security" type="button"><span>🔐</span> Security</button>
+        <button class="tab-btn" data-action="switch-tab" data-section="scanning" type="button"><span>🔍</span> Scan Defaults</button>
+        <button class="tab-btn" data-action="switch-tab" data-section="preferences" type="button"><span>🎨</span> Preferences</button>
+        <button class="tab-btn" data-action="switch-tab" data-section="notifications" type="button"><span>🔔</span> Notifications</button>
       </div>
 
       <!-- ================= PROFILE ================= -->
@@ -78,35 +78,42 @@
             </div>
           </div>
 
-          <div class="form-grid">
-            <div class="form-group">
-              <label for="fullName">Full Name</label>
-              <input type="text" id="fullName" autocomplete="name" placeholder="Your name">
+          <form id="profileForm">
+            <div class="form-grid">
+              <div class="form-group">
+                <label for="fullName">Full Name</label>
+                <input type="text" id="fullName" name="fullName" autocomplete="name" placeholder="Your name" maxlength="150" required>
+              </div>
+              <div class="form-group">
+                <label for="username">Username</label>
+                <input type="text" id="username" autocomplete="username" placeholder="username" disabled>
+              </div>
+              <div class="form-group full">
+                <label for="email">Email Address</label>
+                <input type="email" id="email" autocomplete="email" placeholder="you@example.com" disabled>
+              </div>
+              <div class="form-group">
+                <label for="role">Account Role</label>
+                <input type="text" id="role" value="Security Administrator" disabled>
+                <small class="field-hint">Set by your workspace owner</small>
+              </div>
+              <div class="form-group">
+                <label for="timezone">Timezone</label>
+                <select id="timezone">
+                  <option value="EAT" selected>East Africa Time (EAT)</option>
+                  <option value="UTC">UTC</option>
+                  <option value="CET">Central European Time (CET)</option>
+                  <option value="ET">Eastern Time (ET)</option>
+                  <option value="PT">Pacific Time (PT)</option>
+                </select>
+              </div>
             </div>
-            <div class="form-group">
-              <label for="username">Username</label>
-              <input type="text" id="username" autocomplete="username" placeholder="username">
+
+            <div class="form-actions">
+              <button type="submit" id="saveProfileBtn" class="btn btn-primary">Save Profile</button>
+              <p id="profileMessage" class="form-feedback" hidden></p>
             </div>
-            <div class="form-group full">
-              <label for="email">Email Address</label>
-              <input type="email" id="email" autocomplete="email" placeholder="you@example.com">
-            </div>
-            <div class="form-group">
-              <label for="role">Account Role</label>
-              <input type="text" id="role" value="Security Administrator" disabled>
-              <small class="field-hint">Set by your workspace owner</small>
-            </div>
-            <div class="form-group">
-              <label for="timezone">Timezone</label>
-              <select id="timezone">
-                <option value="EAT" selected>East Africa Time (EAT)</option>
-                <option value="UTC">UTC</option>
-                <option value="CET">Central European Time (CET)</option>
-                <option value="ET">Eastern Time (ET)</option>
-                <option value="PT">Pacific Time (PT)</option>
-              </select>
-            </div>
-          </div>
+          </form>
         </div>
       </section>
 
@@ -118,47 +125,54 @@
             <div class="card-icon primary">🔑</div>
             <div>
               <h3>Change Password</h3>
-              <p>Use at least 8 characters with a number and a symbol.</p>
+              <p>Use at least 8 characters with a number and uppercase letter.</p>
             </div>
           </div>
 
-          <div class="password-fields">
-            <div class="form-group">
-              <label for="currentPassword">Current Password</label>
-              <div class="password-input">
-                <input type="password" id="currentPassword" placeholder="Enter current password">
-                <button class="password-toggle" data-action="toggle-password" type="button" aria-label="Show password">👁</button>
+          <form id="passwordForm">
+            <div class="password-fields">
+              <div class="form-group">
+                <label for="currentPassword">Current Password</label>
+                <div class="password-input">
+                  <input type="password" id="currentPassword" name="currentPassword" autocomplete="current-password" placeholder="Enter current password" required>
+                  <button class="password-toggle" data-action="toggle-password" type="button" aria-label="Show password">👁</button>
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="newPassword">New Password</label>
+                <div class="password-input">
+                  <input type="password" id="newPassword" name="newPassword" autocomplete="new-password" placeholder="Enter new password" required>
+                  <button class="password-toggle" data-action="toggle-password" type="button" aria-label="Show password">👁</button>
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="confirmPassword">Confirm Password</label>
+                <div class="password-input">
+                  <input type="password" id="confirmPassword" name="confirmPassword" autocomplete="new-password" placeholder="Repeat new password" required>
+                  <button class="password-toggle" data-action="toggle-password" type="button" aria-label="Show password">👁</button>
+                </div>
               </div>
             </div>
-            <div class="form-group">
-              <label for="newPassword">New Password</label>
-              <div class="password-input">
-                <input type="password" id="newPassword" placeholder="Enter new password">
-                <button class="password-toggle" data-action="toggle-password" type="button" aria-label="Show password">👁</button>
-              </div>
-            </div>
-            <div class="form-group">
-              <label for="confirmPassword">Confirm Password</label>
-              <div class="password-input">
-                <input type="password" id="confirmPassword" placeholder="Repeat new password">
-                <button class="password-toggle" data-action="toggle-password" type="button" aria-label="Show password">👁</button>
-              </div>
-            </div>
-          </div>
 
-          <div class="password-strength">
-            <div class="strength-label">
-              <span>Password strength</span>
-              <strong id="strengthText">Not checked</strong>
+            <div class="password-strength">
+              <div class="strength-label">
+                <span>Password strength</span>
+                <strong id="strengthText">Not checked</strong>
+              </div>
+              <div class="strength-bar"><span id="strengthBar"></span></div>
+              <ul class="strength-rules" id="strengthRules">
+                <li data-rule="length">8+ characters</li>
+                <li data-rule="case">Upper and lower case</li>
+                <li data-rule="number">A number</li>
+                <li data-rule="symbol">A symbol</li>
+              </ul>
             </div>
-            <div class="strength-bar"><span id="strengthBar"></span></div>
-            <ul class="strength-rules" id="strengthRules">
-              <li data-rule="length">8+ characters</li>
-              <li data-rule="case">Upper and lower case</li>
-              <li data-rule="number">A number</li>
-              <li data-rule="symbol">A symbol</li>
-            </ul>
-          </div>
+
+            <div class="form-actions">
+              <button type="submit" id="savePasswordBtn" class="btn btn-primary">Update Password</button>
+              <p id="passwordMessage" class="form-feedback" hidden></p>
+            </div>
+          </form>
         </div>
 
         <div class="panel toggle-row">
@@ -268,11 +282,17 @@
               </div>
               <div class="preference-control">
                 <select id="defDepth">
+                  <option value="quick">Quick</option>
                   <option value="standard" selected>Standard</option>
                   <option value="deep">Deep</option>
                 </select>
               </div>
             </div>
+          </div>
+
+          <div class="form-actions">
+            <button type="button" id="saveScanningBtn" class="btn btn-primary" data-action="save-settings">Save Scan Defaults</button>
+            <p id="scanningMessage" class="form-feedback" hidden></p>
           </div>
         </div>
       </section>
@@ -377,6 +397,13 @@
               </div>
               <label class="switch"><input type="checkbox" id="notifComplete"><span class="slider"></span></label>
             </div>
+            <div class="notification-item">
+              <div class="notification-left">
+                <div class="notification-icon critical">✕</div>
+                <div><strong>Scan Failed</strong><small>Alert when a scan fails or encounters an error.</small></div>
+              </div>
+              <label class="switch"><input type="checkbox" id="notifFailed"><span class="slider"></span></label>
+            </div>
             <div class="notification-item" style="opacity: 0.6">
               <div class="notification-left">
                 <div class="notification-icon primary">📅</div>
@@ -391,6 +418,16 @@
               </div>
               <label class="switch"><input type="checkbox" id="notifQuiet"><span class="slider"></span></label>
             </div>
+          </div>
+
+          <div class="settings-note" id="emailNotice">
+            <span class="settings-note-icon">ℹ️</span>
+            <span>Email sending is not available; notification preferences are stored for your account only.</span>
+          </div>
+
+          <div class="form-actions">
+            <button type="button" id="saveNotificationsBtn" class="btn btn-primary" data-action="save-settings">Save Notifications</button>
+            <p id="notificationsMessage" class="form-feedback" hidden></p>
           </div>
         </div>
       </section>
@@ -424,10 +461,10 @@
 
   
 
-  <script src="../js/config.js"></script>
-  <script src="../js/api.js"></script>
-  <script src="../js/auth.js"></script>
-  <script src="../js/settings.js"></script>
+  <script src="/static/js/config.js"></script>
+  <script src="/static/js/api.js"></script>
+  <script src="/static/js/auth.js"></script>
+  <script src="/static/js/settings.js"></script>
 </body>
 </html>
 
