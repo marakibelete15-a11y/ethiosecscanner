@@ -93,3 +93,45 @@ Run the API and serve the frontend from the same origin, then open the URLs list
 - [ ] Open a report with a malformed ID and confirm an invalid ID error plus a link to the reports list. Open a syntactically valid nonexistent UUID or another user's report ID; confirm the same "Report not found." message and link.
 - [ ] Click Export PDF and confirm `window.print()` is triggered. Confirm `@media print` styles hide navigation, sidebar, and buttons, render black on white, keep findings expanded without page breaks inside findings, and display severity as text.
 - [ ] Confirm the page remains responsive and usable at phone width, and uses no inline scripts, inline event handlers, `innerHTML`, or external scripts.
+
+## User Settings (`/static/pages/settings.html`)
+
+- [ ] Open `/static/pages/settings.html` while signed out. Confirm `Auth.requireAuth()` redirects to `login.html`.
+- [ ] Sign in and load the settings page. Confirm `GET /api/user/profile` and `GET /api/user/settings` load and populate profile details, scan depth, and notification toggles.
+- [ ] In Profile, confirm Email and Role are read-only (disabled), and Full Name is editable with `autocomplete="name"`.
+- [ ] Update Full Name with valid text (1 to 150 characters, trimmed); confirm Save Profile disables with a visible loading state, sends `PUT /api/user/profile` with `{ full_name: trimmedName }`, shows success message, and immediately updates the user name and avatar in both the profile preview and the sidebar navigation.
+- [ ] Attempt saving an empty name or a name exceeding 150 characters; confirm client error feedback is shown and no API call is made.
+- [ ] In Security, confirm fields use `type="password"` with `autocomplete="current-password"` and `autocomplete="new-password"`, plus a client-checked confirm password input.
+- [ ] Test password client-side rules: confirm missing fields, mismatch between new and confirm, new password identical to current, and complexity rules (8–72 bytes, uppercase, lowercase, digit) block submission with clear error messages.
+- [ ] Submit Change Password with an incorrect current password. Confirm API returns 400 `INVALID_CURRENT_PASSWORD`, the message "The current password is incorrect." is displayed, and the user remains logged in.
+- [ ] Submit Change Password with valid credentials. Confirm button disables while saving, request sends `{ current_password, new_password }`, success message is displayed, all three password fields are cleared, strength indicator resets, and session is preserved. Passwords are never stored or logged.
+- [ ] Toggle password visibility with the eye icon buttons; confirm fields switch between masked and plain text.
+- [ ] In Scan Defaults & Notifications, confirm default scan depth options include `quick`, `standard`, and `deep`, and toggles exist for `notify_scan_completed`, `notify_scan_failed`, and `notify_critical_finding`.
+- [ ] Confirm the visible disclaimer note is present: "Email sending is not available; notification preferences are stored for your account only."
+- [ ] Save scan defaults or notifications; confirm buttons disable while saving, `PUT /api/user/settings` sends all four required fields, and success feedback is displayed.
+- [ ] Confirm each form is its own request, disables its button while saving, and displays server error or success messages.
+- [ ] Confirm the page layout adapts cleanly down to phone width without broken controls, and uses no inline scripts, inline event handlers, `innerHTML`, or external scripts.
+
+## Public Landing Pages (`index.html`, `features.html`, `contact.html`)
+
+- [ ] Open `index.html`, `features.html`, and `contact.html` while signed out. Confirm pages load without authentication redirect.
+- [ ] While signed out, confirm navigation displays "LOGIN / REGISTER" and footer displays "Login" and "Sign Up".
+- [ ] Sign in, then return to the public pages. Confirm `Auth.validatedSession()` calls `GET /api/auth/me` and updates navigation to show "DASHBOARD" instead of "LOGIN / REGISTER".
+- [ ] Invalidate the session (e.g. tamper token in localStorage) and reload. Confirm the public page falls back to the logged-out navigation, clears stored credentials, and does not break.
+- [ ] Verify all inter-page links between `index.html`, `features.html`, `contact.html`, `login.html`, `signup.html`, and `dashboard.html` work without 404s.
+- [ ] Confirm the SEC-13 legal notice is visible on `index.html`: "Only scan websites you own or have written permission to test. Scanning systems without permission may be illegal."
+- [ ] In `contact.html`, test form validation:
+  - Empty submission shows required field errors.
+  - Invalid email shows email format error.
+  - Message under 10 or over 1000 characters displays length validation error.
+- [ ] Submit valid contact information: confirm submit button disables with "SENDING…", no external request is sent and nothing is stored, demo confirmation message "This contact form is a demo; no message was sent." appears rendered via textContent, and form inputs are cleared.
+- [ ] Confirm mobile hamburger menu toggles navigation links on small screens and all three pages remain responsive down to phone width.
+
+## AI Assistant (`/static/pages/ai_assistant.html`)
+
+- [ ] Open `/static/pages/ai_assistant.html` while signed out. Confirm `Auth.requireAuth()` redirects to `login.html`.
+- [ ] Sign in and open the page. Confirm the sidebar, account info, and layout load properly.
+- [ ] Confirm the page displays the placeholder advisory explaining that the AI assistant is planned for a later version.
+- [ ] Confirm the explanation clearly details what the assistant will do: summarize scan findings, explain findings and how to fix them, and answer questions about the platform.
+- [ ] Confirm there is no functional-looking composer input box and that the page makes no requests to any third-party AI service.
+- [ ] Confirm the page is usable at phone width with no inline scripts, inline event handlers, `innerHTML`, or external scripts.

@@ -1,13 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    
-
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>AI Assistant - EthioSecScan</title>
-  <link rel="stylesheet" href="../css/global.css">
-  <link rel="stylesheet" href="../css/ai_assistant.css">
+  <link rel="stylesheet" href="/static/css/global.css">
+  <link rel="stylesheet" href="/static/css/ai_assistant.css">
 </head>
 <body>
 
@@ -22,16 +20,25 @@
   <div class="layout">
 
     <aside class="sidebar" id="sidebar">
-      <div class="brand">
-        <h2>EthioSecScan</h2>
+      <div class="sidebar-logo">
+        <div class="logo-icon">🛡️</div>
+        <span class="logo-text">EthioSecScan</span>
       </div>
       <nav class="sidebar-nav" aria-label="Main navigation"></nav>
-      
-      
-      
-      
-      
-      
+      <div class="scanner-status">
+        <div class="status-dot"></div>
+        <span>AI Assistant Preview</span>
+      </div>
+      <div class="sidebar-footer">
+        <div class="user-info">
+          <div class="user-avatar">U</div>
+          <div class="user-details">
+            <span class="user-name">Loading account…</span>
+            <span class="user-email" id="userEmailDisplay"></span>
+          </div>
+        </div>
+        <button class="logout-btn" id="logoutBtn" data-action="logout" type="button">Log Out</button>
+      </div>
     </aside>
 
     <main class="page-container">
@@ -39,34 +46,58 @@
       <div class="page-header">
         <div class="header-content">
           <h1>AI Security Assistant</h1>
-          <p>Ask about findings the scanner already produced</p>
+          <p>Automated vulnerability interpretation and remediation advisory</p>
         </div>
-        <a href="results.html" class="ghost-btn" id="backLink" hidden>← Back to results</a>
+        <a href="dashboard.html" class="ghost-btn" id="backLink">← Back to dashboard</a>
       </div>
 
       <section class="panel chat-panel">
 
-        <!-- Context chips show which scan/finding is in focus -->
-        <div class="context-row" id="contextRow"><!-- DATA: focus chips filled by ai_assistant.js -->
-          <span class="context-chip muted" id="chipNone">No scan in focus — answers will be general</span>
+        <div class="ai-placeholder-card">
+          <div class="placeholder-badge">🚀 Feature In Development — Planned for Next Release</div>
+
+          <h2>Intelligent Security Explanations</h2>
+
+          <p class="placeholder-lead">
+            The EthioSecScan AI Assistant is planned for a later version of the platform. Once released, the assistant will bridge automated scan results with actionable remediation workflows by providing plain-language explanations and practical guidance:
+          </p>
+
+          <div class="assistant-features-list">
+            <div class="assistant-feature-item">
+              <div class="feature-icon">📊</div>
+              <div class="feature-text">
+                <strong>Summarize scan findings</strong>
+                <p>Generate high-level executive summaries of scan results highlighting critical vulnerabilities, severity distribution, and risk impact.</p>
+              </div>
+            </div>
+
+            <div class="assistant-feature-item">
+              <div class="feature-icon">🛡️</div>
+              <div class="feature-text">
+                <strong>Explain findings and how to fix them</strong>
+                <p>Break down technical CWE and OWASP vulnerabilities into plain language with context-specific remediation code and config snippets.</p>
+              </div>
+            </div>
+
+            <div class="assistant-feature-item">
+              <div class="feature-icon">❓</div>
+              <div class="feature-text">
+                <strong>Answer questions about the platform</strong>
+                <p>Help users configure scan modules, understand verification proofs, interpret security scores, and adopt best practices.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="placeholder-note">
+            <span>ℹ️</span>
+            <span>The AI Assistant will only interpret verified scanner findings. It sends no requests to third-party AI services in this preview and contains no mock generation.</span>
+          </div>
+
+          <div class="placeholder-actions">
+            <a href="new_scan.html" class="primary-btn">Start a Scan</a>
+            <a href="history.html" class="ghost-btn">View Scan History</a>
+          </div>
         </div>
-
-        <div class="chat" id="chat"><!-- DATA: conversation bubbles rendered by ai_assistant.js --></div>
-
-        <div class="suggestions" id="suggestions">
-          <button class="suggestion" data-action="suggestion" type="button">How do I fix this?</button>
-          <button class="suggestion" data-action="suggestion" type="button">How severe is this really?</button>
-          <button class="suggestion" data-action="suggestion" type="button">What does the OWASP tag mean?</button>
-        </div>
-
-        <form class="composer" id="composer">
-          <input type="text" id="message" placeholder="Ask about this scan…" autocomplete="off">
-          <button class="primary-btn" id="sendBtn" data-action="send-message" type="submit">Send</button>
-        </form>
-
-        <p class="guardrail">
-          The assistant only explains findings the scanner produced. It never decides on its own that something is vulnerable.
-        </p>
 
       </section>
 
@@ -75,12 +106,9 @@
 
   <div class="toast" id="toast"></div>
 
-  
-
-  <script src="../js/config.js"></script>
-  <script src="../js/api.js"></script>
-  <script src="../js/auth.js"></script>
-  <script src="../js/ai_assistant.js"></script>
+  <script src="/static/js/config.js"></script>
+  <script src="/static/js/api.js"></script>
+  <script src="/static/js/auth.js"></script>
+  <script src="/static/js/ai_assistant.js"></script>
 </body>
 </html>
-

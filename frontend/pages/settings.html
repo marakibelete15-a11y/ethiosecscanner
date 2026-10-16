@@ -39,6 +39,16 @@
         <div class="status-dot"></div>
         <span>Settings Synced</span>
       </div>
+      <div class="sidebar-footer">
+        <div class="user-info">
+          <div class="user-avatar">U</div>
+          <div class="user-details">
+            <span class="user-name">Loading account…</span>
+            <span class="user-email" id="userEmailDisplay"></span>
+          </div>
+        </div>
+        <button class="logout-btn" id="logoutBtn" data-action="logout" type="button">Log Out</button>
+      </div>
     </aside>
 
     <main class="page-container">
@@ -356,6 +366,11 @@
                 </select>
               </div>
             </div>
+          </div>
+
+          <div class="form-actions">
+            <button type="button" id="savePreferencesBtn" class="btn btn-primary" data-action="save-settings">Save Preferences</button>
+            <p id="preferencesMessage" class="form-feedback" hidden></p>
           </div>
         </div>
       </section>

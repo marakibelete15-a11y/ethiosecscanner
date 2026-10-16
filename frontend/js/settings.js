@@ -311,12 +311,16 @@
 
 		const scanBtn = document.getElementById("saveScanningBtn");
 		const notifBtn = document.getElementById("saveNotificationsBtn");
+		const prefBtn = document.getElementById("savePreferencesBtn");
 		const bottomBtn = document.getElementById("saveChanges");
 		const saveStatus = document.getElementById("saveStatus");
 
-		const msgEl = source === "notifications"
-			? document.getElementById("notificationsMessage")
-			: document.getElementById("scanningMessage");
+		let msgEl = document.getElementById("scanningMessage");
+		if (source === "notifications") {
+			msgEl = document.getElementById("notificationsMessage");
+		} else if (source === "preferences") {
+			msgEl = document.getElementById("preferencesMessage");
+		}
 
 		const payloadCheck = validateSettingsPayload({
 			default_scan_depth: depthEl ? depthEl.value : "standard",
@@ -332,6 +336,7 @@
 
 		if (scanBtn) setButtonLoading(scanBtn, true, "Saving…");
 		if (notifBtn) setButtonLoading(notifBtn, true, "Saving…");
+		if (prefBtn) setButtonLoading(prefBtn, true, "Saving…");
 		if (bottomBtn) setButtonLoading(bottomBtn, true, "Saving…");
 		if (msgEl) clearFeedback(msgEl);
 		if (saveStatus) saveStatus.textContent = "Saving preferences…";
@@ -355,6 +360,7 @@
 		} finally {
 			if (scanBtn) setButtonLoading(scanBtn, false, "Save Scan Defaults");
 			if (notifBtn) setButtonLoading(notifBtn, false, "Save Notifications");
+			if (prefBtn) setButtonLoading(prefBtn, false, "Save Preferences");
 			if (bottomBtn) setButtonLoading(bottomBtn, false, "Save changes");
 		}
 	}
@@ -451,6 +457,11 @@
 			saveScanningBtn.addEventListener("click", (e) => handleSettingsSubmit(e, "scanning"));
 		}
 
+		const savePreferencesBtn = document.getElementById("savePreferencesBtn");
+		if (savePreferencesBtn) {
+			savePreferencesBtn.addEventListener("click", (e) => handleSettingsSubmit(e, "preferences"));
+		}
+
 		const saveNotificationsBtn = document.getElementById("saveNotificationsBtn");
 		if (saveNotificationsBtn) {
 			saveNotificationsBtn.addEventListener("click", (e) => handleSettingsSubmit(e, "notifications"));
@@ -467,6 +478,8 @@
 					handlePasswordSubmit(e);
 				} else if (activeId === "notifications") {
 					handleSettingsSubmit(e, "notifications");
+				} else if (activeId === "preferences") {
+					handleSettingsSubmit(e, "preferences");
 				} else {
 					handleSettingsSubmit(e, "scanning");
 				}
