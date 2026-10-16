@@ -62,5 +62,7 @@ test("scan_helpers aggregates severity counts and handles missing data", () => {
 test("scan_helpers safely formats timestamps with invalid input protection", () => {
 	assert.equal(formatTimestamp(null), "Not available");
 	assert.equal(formatTimestamp("invalid-date"), "Not available");
+	assert.equal(formatTimestamp(null, "Not checked"), "Not checked");
+	assert.equal(formatTimestamp("invalid-date", "—"), "—");
 	assert.match(formatTimestamp("2026-10-16T08:00:00Z"), /2026/);
 });

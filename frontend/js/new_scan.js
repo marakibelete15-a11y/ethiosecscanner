@@ -1,4 +1,8 @@
 (() => {
+	const helpers = typeof module !== "undefined" && typeof require !== "undefined"
+		? require("./scan_helpers.js")
+		: (globalThis.ScanHelpers || {});
+
 	const DEPTHS = Object.freeze({
 		quick: "Home page and well-known paths; passive checks only.",
 		standard: "A limited crawl plus light parameter probes.",
@@ -17,7 +21,7 @@
 		{ key: "access_control", label: "Access control", description: "Check common paths for publicly accessible areas." },
 		{ key: "auth_checks", label: "Authentication checks", description: "Review login-form responses and basic throttling." }
 	]);
-	const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+	const UUID_PATTERN = helpers.SCAN_ID_PATTERN || /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 	function getDefaultDepth(settings) {
 		const value = settings?.default_scan_depth;
@@ -25,6 +29,9 @@
 	}
 
 	function parseTargetId(search) {
+		if (helpers.parseIdFromQuery) {
+			return helpers.parseIdFromQuery(search, "target");
+		}
 		const value = new URLSearchParams(search || "").get("target");
 		return value && UUID_PATTERN.test(value) ? value : null;
 	}

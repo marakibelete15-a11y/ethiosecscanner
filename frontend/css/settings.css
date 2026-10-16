@@ -499,6 +499,11 @@ select option { background: #151110; color: #fff; }
 .swatch:hover { transform: scale(1.08); }
 .swatch.active { border-color: var(--text); box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.08); }
 
+.swatch-volcano { --sw: #cc2f0c; }
+.swatch-emerald { --sw: #1bb369; }
+.swatch-amber { --sw: #ffa500; }
+.swatch-ember { --sw: #8e2109; }
+
 /* ============ NOTIFICATIONS ============ */
 
 .notification-group { 
@@ -517,6 +522,16 @@ select option { background: #151110; color: #fff; }
     background: var(--surface); 
     border: 1px solid var(--border);
     transition: border-color 0.25s ease;
+}
+
+.notification-item.disabled {
+    opacity: 0.6;
+}
+
+.badge-coming-soon {
+    padding: 2px 6px;
+    font-size: 0.7rem;
+    float: right;
 }
 
 .notification-item:hover { border-color: rgba(204, 47, 12, 0.28); }

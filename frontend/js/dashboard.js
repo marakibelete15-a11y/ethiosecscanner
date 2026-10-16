@@ -1,5 +1,14 @@
 (() => {
-	const SEVERITIES = Object.freeze(["critical", "high", "medium", "low", "info"]);
+	const helpers = typeof module !== "undefined" && typeof require !== "undefined"
+		? require("./scan_helpers.js")
+		: (globalThis.ScanHelpers || {});
+
+	const SEVERITIES = helpers.SEVERITY_ORDER || Object.freeze(["critical", "high", "medium", "low", "info"]);
+	const formatDate = helpers.formatTimestamp || ((value) => {
+		if (!value) return "Not available";
+		const date = new Date(value);
+		return Number.isNaN(date.getTime()) ? "Not available" : date.toLocaleString();
+	});
 
 	function getBarWidth(value, maximum) {
 		const count = Math.max(0, Number(value) || 0);
@@ -25,11 +34,6 @@
 		return `${route}?id=${encodeURIComponent(scan?.id || "")}`;
 	}
 
-	function formatDate(value) {
-		if (!value) return "Not available";
-		const date = new Date(value);
-		return Number.isNaN(date.getTime()) ? "Not available" : date.toLocaleString();
-	}
 
 	function formatStatus(status) {
 		if (!status) return "Unknown";

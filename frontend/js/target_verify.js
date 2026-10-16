@@ -1,4 +1,8 @@
 (() => {
+	const helpers = typeof module !== "undefined" && typeof require !== "undefined"
+		? require("./scan_helpers.js")
+		: (globalThis.ScanHelpers || {});
+
 	const METHOD_LABELS = Object.freeze({
 		meta_tag: "Meta tag",
 		dns_txt: "DNS TXT record",
@@ -6,6 +10,9 @@
 	});
 
 	function formatTimestamp(value) {
+		if (helpers.formatTimestamp) {
+			return helpers.formatTimestamp(value, "Not checked");
+		}
 		if (!value) return "Not checked";
 		const date = new Date(value);
 		return Number.isNaN(date.getTime()) ? "Not checked" : date.toLocaleString();

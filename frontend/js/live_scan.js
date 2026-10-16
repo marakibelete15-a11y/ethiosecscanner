@@ -1,5 +1,13 @@
 (() => {
-	const SCAN_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+	const helpers = typeof module !== "undefined" && typeof require !== "undefined"
+		? require("./scan_helpers.js")
+		: (globalThis.ScanHelpers || {});
+
+	const SCAN_ID_PATTERN = helpers.SCAN_ID_PATTERN || /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+	const parseScanId = helpers.parseScanId || ((search) => {
+		const value = new URLSearchParams(search || "").get("id");
+		return value && SCAN_ID_PATTERN.test(value) ? value : null;
+	});
 	const TERMINAL_STATES = new Set(["completed", "failed", "cancelled"]);
 	const POLL_INTERVAL_MS = 2000;
 	const HIDDEN_POLL_INTERVAL_MS = 10000;
@@ -17,11 +25,6 @@
 		access_control: "Access control",
 		auth_checks: "Authentication checks"
 	});
-
-	function parseScanId(search) {
-		const value = new URLSearchParams(search || "").get("id");
-		return value && SCAN_ID_PATTERN.test(value) ? value : null;
-	}
 
 	function clampProgress(value) {
 		const numericValue = Number(value);

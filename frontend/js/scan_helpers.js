@@ -69,10 +69,10 @@
 			.filter((finding) => String(finding?.severity || "").toLowerCase() === severity).length;
 	}
 
-	function formatTimestamp(value) {
-		if (!value) return "Not available";
+	function formatTimestamp(value, fallback = "Not available") {
+		if (!value) return fallback;
 		const date = new Date(value);
-		return Number.isNaN(date.getTime()) ? "Not available" : date.toLocaleString();
+		return Number.isNaN(date.getTime()) ? fallback : date.toLocaleString();
 	}
 
 	const exported = Object.freeze({

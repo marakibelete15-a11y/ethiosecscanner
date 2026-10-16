@@ -135,3 +135,83 @@ Run the API and serve the frontend from the same origin, then open the URLs list
 - [ ] Confirm the explanation clearly details what the assistant will do: summarize scan findings, explain findings and how to fix them, and answer questions about the platform.
 - [ ] Confirm there is no functional-looking composer input box and that the page makes no requests to any third-party AI service.
 - [ ] Confirm the page is usable at phone width with no inline scripts, inline event handlers, `innerHTML`, or external scripts.
+
+## Full Frontend Verification Run
+
+Execute an end-to-end verification across all 14 pages in the designated sequence:
+
+1. **`login.html` (`/static/pages/login.html`)**
+   - [ ] Verify validation errors on empty fields and invalid email format.
+   - [ ] Test incorrect credentials; verify visible server error without navigation.
+   - [ ] Enter valid credentials; verify submit button disables with visible loading state, stores token, and redirects to dashboard.
+
+2. **`signup.html` (`/static/pages/signup.html`)**
+   - [ ] Test client validation for full name, email format, password complexity (8–72 bytes, upper, lower, digit), and password confirmation match.
+   - [ ] Submit registration; verify button disables during submission, receives account created response, and navigates to `login.html?registered=true`.
+
+3. **`dashboard.html` (`/static/pages/dashboard.html`)**
+   - [ ] Confirm `requireAuth()` guards access; unauthenticated loads redirect to `login.html`.
+   - [ ] Verify summary counters (targets, verified targets, scans, completed scans, security score).
+   - [ ] Confirm severity breakdown shows 5 bars in exact canonical order: Critical, High, Medium, Low, Info.
+   - [ ] Check recent scans list (links to `live_scan.html` for active scans and `results.html` for finished scans).
+
+4. **`target_verify.html` (`/static/pages/target_verify.html`)**
+   - [ ] Verify SEC-13 legal authorization notice is prominently visible.
+   - [ ] Add target with HTTP/HTTPS URL and verification method (meta tag, DNS TXT, file).
+   - [ ] Verify proof instructions display token and method-specific fields; copy proof to clipboard.
+   - [ ] Perform verification check; verify state badge updates to verified or displays server failure details.
+
+5. **`new_scan.html` (`/static/pages/new_scan.html`)**
+   - [ ] Confirm only verified targets can be selected; unverified targets are disabled.
+   - [ ] Check depth options (quick, standard, deep) and default selection from account settings.
+   - [ ] Verify all 11 security modules with toggle all/none controls.
+   - [ ] Check required authorization checkbox and start scan; verify redirection to `live_scan.html?id=<id>`.
+
+6. **`live_scan.html` (`/static/pages/live_scan.html`)**
+   - [ ] Verify progress bar and module execution statuses update at 2-second polling intervals.
+   - [ ] Confirm hidden tabs throttle polling to 10-second intervals.
+   - [ ] Test scan cancellation with confirmation prompt; confirm terminal state stops polling.
+   - [ ] On completion, verify link navigates to `results.html?id=<id>`.
+
+7. **`results.html` (`/static/pages/results.html`)**
+   - [ ] Verify Critical findings appear first and prominently; a Critical finding never displays a "safe" verdict.
+   - [ ] Test finding filters (severity, module, status, search text) and status updates.
+   - [ ] Expand finding evidence; verify content is plain text inside `<pre>`, masked, and scripts never execute.
+   - [ ] Confirm safe URLs use `target="_blank" rel="noopener noreferrer"` and unsafe protocols are rejected.
+   - [ ] Test "Create report" button on completed scan; verify navigation to `reports.html?id=<report-id>`.
+
+8. **`history.html` (`/static/pages/history.html`)**
+   - [ ] Verify scan history table with 10 rows per page, pagination controls, status filter, and target filter.
+   - [ ] Verify each row displays target, status badge, depth, score/progress, timestamp, and severity counts.
+   - [ ] Test scan deletion with confirmation dialog and list refresh.
+   - [ ] Test responsive card view at phone width (360px).
+
+9. **`reports.html` (`/static/pages/reports.html`)**
+   - [ ] Verify report list view with 10 items per page and report detail view (`?id=<id>`).
+   - [ ] Confirm score tile, executive summary, category breakdown, module summary table, and findings.
+   - [ ] Test "Export PDF" trigger (`window.print()`) and print stylesheet formatting.
+   - [ ] Verify responsive layout and horizontal table containment at 360px.
+
+10. **`settings.html` (`/static/pages/settings.html`)**
+    - [ ] Update Profile full name (1–150 chars); verify UI and sidebar name update immediately.
+    - [ ] Change password with current password, new password, and confirmation; verify complexity validation.
+    - [ ] Update scan depth preference and notification toggles; verify persistent storage.
+    - [ ] Confirm no inline styles; all swatches and badges styled via CSS classes.
+
+11. **`index.html` (`/static/pages/index.html`)**
+    - [ ] Public landing page loads without auth redirect; verify zero external web fonts.
+    - [ ] Verify dynamic navigation updates between "LOGIN / REGISTER" (logged out) and "DASHBOARD" (logged in).
+    - [ ] Verify SEC-13 legal notice and mobile navigation toggle at 360px.
+
+12. **`features.html` (`/static/pages/features.html`)**
+    - [ ] Public features page loads without auth redirect; zero external resource dependencies.
+    - [ ] Verify feature cards, module descriptions, and responsive grid layout.
+
+13. **`contact.html` (`/static/pages/contact.html`)**
+    - [ ] Test client form validation (name, email, 10–1000 char message length).
+    - [ ] Submit demo contact form; verify demo disclaimer text rendered via textContent, inputs reset, and no external request sent.
+
+14. **`ai_assistant.html` (`/static/pages/ai_assistant.html`)**
+    - [ ] Protected page requires auth; redirects unauthenticated users to `login.html`.
+    - [ ] Verify placeholder advisory clearly explaining future capabilities.
+    - [ ] Confirm no fake interactive composer input and zero requests to third-party AI endpoints.

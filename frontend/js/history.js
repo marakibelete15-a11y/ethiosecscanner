@@ -1,6 +1,15 @@
 (() => {
+	const helpers = typeof module !== "undefined" && typeof require !== "undefined"
+		? require("./scan_helpers.js")
+		: (globalThis.ScanHelpers || {});
+
 	const PAGE_SIZE = 10;
-	const SEVERITIES = Object.freeze(["critical", "high", "medium", "low", "info"]);
+	const SEVERITIES = helpers.SEVERITY_ORDER || Object.freeze(["critical", "high", "medium", "low", "info"]);
+	const formatDate = helpers.formatTimestamp || ((value) => {
+		if (!value) return "Not available";
+		const date = new Date(value);
+		return Number.isNaN(date.getTime()) ? "Not available" : date.toLocaleString();
+	});
 	const VALID_STATUSES = new Set(["queued", "running", "completed", "failed", "cancelled"]);
 
 	function getPageCount(total, pageSize = PAGE_SIZE) {
@@ -73,12 +82,6 @@
 	function setError(message) {
 		historyError.textContent = message || "";
 		historyError.hidden = !message;
-	}
-
-	function formatDate(value) {
-		if (!value) return "Not available";
-		const date = new Date(value);
-		return Number.isNaN(date.getTime()) ? "Not available" : date.toLocaleString();
 	}
 
 	function createCell(label, value, className = "") {

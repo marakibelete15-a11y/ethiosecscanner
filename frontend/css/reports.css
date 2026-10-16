@@ -228,6 +228,7 @@
     .cat-row { grid-template-columns: 96px 1fr 36px; }
     .doc-actions { width: 100%; }
     .doc-actions .ghost-btn, .doc-actions .primary-btn { flex: 1; }
+    .doc-section { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 }
 
 /* ============ EXTENDED COMPONENTS ============ */
